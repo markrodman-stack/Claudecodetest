@@ -1,0 +1,6 @@
+# Claude Code
+.claude/
+
+# Temporary files
+*.tmp
+find_gh.ps1
