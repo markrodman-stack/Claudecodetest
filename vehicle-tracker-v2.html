@@ -457,31 +457,6 @@
             <label for="vehicle-select">Popular Vehicles Sold</label>
             <select id="vehicle-select">
                 <option value="">All Vehicles</option>
-                <option value="Chevrolet Trax">Chevrolet Trax — 2,975</option>
-                <option value="Chevrolet Trailblazer">Chevrolet Trailblazer — 2,295</option>
-                <option value="Chevrolet Equinox">Chevrolet Equinox — 2,052</option>
-                <option value="Chevrolet Malibu">Chevrolet Malibu — 1,660</option>
-                <option value="Nissan Altima">Nissan Altima — 1,659</option>
-                <option value="Toyota Camry">Toyota Camry — 1,518</option>
-                <option value="Buick Envista">Buick Envista — 1,517</option>
-                <option value="Kia K4">Kia K4 — 1,413</option>
-                <option value="Nissan Rogue">Nissan Rogue — 1,312</option>
-                <option value="Buick Encore GX">Buick Encore GX — 1,132</option>
-                <option value="Kia Soul">Kia Soul — 967</option>
-                <option value="Tesla Model Y">Tesla Model Y — 939</option>
-                <option value="Nissan Sentra">Nissan Sentra — 852</option>
-                <option value="Tesla Model 3">Tesla Model 3 — 826</option>
-                <option value="Nissan Versa">Nissan Versa — 725</option>
-                <option value="Jeep Compass">Jeep Compass — 717</option>
-                <option value="Hyundai Kona">Hyundai Kona — 710</option>
-                <option value="Jeep Cherokee">Jeep Cherokee — 670</option>
-                <option value="Toyota RAV4">Toyota RAV4 — 598</option>
-                <option value="Hyundai Tucson">Hyundai Tucson — 564</option>
-                <option value="Jeep Wrangler">Jeep Wrangler — 566</option>
-                <option value="Chevrolet Silverado">Chevrolet Silverado — 539</option>
-                <option value="Ford Edge">Ford Edge — 525</option>
-                <option value="Hyundai Elantra">Hyundai Elantra — 522</option>
-                <option value="Volkswagen Jetta">Volkswagen Jetta — 490</option>
             </select>
         </div>
     </div>
@@ -496,11 +471,11 @@
                 </div>
             </div>
             <div style="text-align:center">
-                <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Total Sold (YTD)</div>
+                <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">YTD Total</div>
                 <div id="spotlight-total" style="font-size:1.25rem;font-weight:700;color:#fff"></div>
             </div>
             <div style="text-align:center">
-                <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Top Year</div>
+                <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">This Week</div>
                 <div id="spotlight-year" style="font-size:1.25rem;font-weight:700;color:#fff"></div>
             </div>
             <div style="text-align:center">
@@ -743,53 +718,68 @@ function applyFilters(){
   const sort=document.getElementById('sort-select').value;
   renderMap(metric,week);renderTable(metric,week,sort,filter);updateKPIs(metric,week);
 }
-document.getElementById('week-select').addEventListener('change',applyFilters);
+document.getElementById('week-select').addEventListener('change',()=>{applyFilters();updateVehicleDropdown()});
 document.getElementById('metric-select').addEventListener('change',applyFilters);
 document.getElementById('location-type-select').addEventListener('change',applyFilters);
 document.getElementById('sort-select').addEventListener('change',applyFilters);
-const VEHICLES=[
-{name:"Chevrolet Trax",total:2975,year:2025,body:"SUV",rank:1},
-{name:"Chevrolet Trailblazer",total:2295,year:2025,body:"SUV",rank:2},
-{name:"Chevrolet Equinox",total:2052,year:2025,body:"SUV",rank:3},
-{name:"Chevrolet Malibu",total:1660,year:2024,body:"Sedan",rank:4},
-{name:"Nissan Altima",total:1659,year:2025,body:"Sedan",rank:5},
-{name:"Toyota Camry",total:1518,year:2025,body:"Sedan",rank:6},
-{name:"Buick Envista",total:1517,year:2025,body:"SUV",rank:7},
-{name:"Kia K4",total:1413,year:2025,body:"Sedan",rank:8},
-{name:"Nissan Rogue",total:1312,year:2023,body:"SUV",rank:9},
-{name:"Buick Encore GX",total:1132,year:2025,body:"SUV",rank:10},
-{name:"Kia Soul",total:967,year:2025,body:"Wagon",rank:11},
-{name:"Tesla Model Y",total:939,year:2023,body:"SUV",rank:12},
-{name:"Nissan Sentra",total:852,year:2025,body:"Sedan",rank:13},
-{name:"Tesla Model 3",total:826,year:2023,body:"Sedan",rank:14},
-{name:"Nissan Versa",total:725,year:2025,body:"Sedan",rank:15},
-{name:"Jeep Compass",total:717,year:2025,body:"SUV",rank:16},
-{name:"Hyundai Kona",total:710,year:2025,body:"SUV",rank:17},
-{name:"Jeep Cherokee",total:670,year:2019,body:"SUV",rank:18},
-{name:"Toyota RAV4",total:598,year:2025,body:"SUV",rank:19},
-{name:"Hyundai Tucson",total:564,year:2025,body:"SUV",rank:20},
-{name:"Jeep Wrangler",total:566,year:2018,body:"SUV",rank:21},
-{name:"Chevrolet Silverado",total:539,year:2023,body:"Pickup",rank:22},
-{name:"Ford Edge",total:525,year:2024,body:"SUV",rank:23},
-{name:"Hyundai Elantra",total:522,year:2025,body:"Sedan",rank:24},
-{name:"Volkswagen Jetta",total:490,year:2025,body:"Sedan",rank:25}
+const VEHICLE_WEEKLY=[
+...p("2026-04-27",[["Chevrolet Trax","SUV",99],["Nissan Altima","Sedan",95],["Buick Envista","SUV",89],["Jeep Compass","SUV",72],["Kia K4","Sedan",71],["Chevrolet Trailblazer","SUV",69],["Chevrolet Equinox","SUV",68],["Kia Soul","Wagon",63],["Nissan Rogue","SUV",61],["Buick Encore GX","SUV",57],["Nissan Sentra","Sedan",52],["Nissan Versa","Sedan",44],["Kia Sportage","SUV",37],["Tesla Model Y","SUV",36],["Jeep Wrangler","SUV",33],["Tesla Model 3","Sedan",32],["Hyundai Tucson","SUV",32],["Jeep Cherokee","SUV",30],["Chevrolet Colorado","Pickup",29],["Toyota Camry","Sedan",26]]),
+...p("2026-04-20",[["Chevrolet Trax","SUV",205],["Buick Envista","SUV",156],["Chevrolet Equinox","SUV",141],["Nissan Altima","Sedan",131],["Chevrolet Trailblazer","SUV",129],["Kia K4","Sedan",110],["Buick Encore GX","SUV",105],["Kia Soul","Wagon",102],["Nissan Rogue","SUV",88],["Jeep Compass","SUV",78],["Nissan Sentra","Sedan",76],["Tesla Model 3","Sedan",74],["Nissan Versa","Sedan",65],["Tesla Model Y","SUV",64],["Jeep Wrangler","SUV",57],["Kia Sportage","SUV",55],["Toyota Camry","Sedan",53],["Hyundai Tucson","SUV",51],["Jeep Cherokee","SUV",40],["Chevrolet Silverado","Pickup",39]]),
+...p("2026-04-13",[["Chevrolet Trax","SUV",174],["Chevrolet Trailblazer","SUV",170],["Chevrolet Equinox","SUV",167],["Buick Envista","SUV",152],["Nissan Altima","Sedan",123],["Buick Encore GX","SUV",100],["Kia K4","Sedan",97],["Nissan Sentra","Sedan",79],["Kia Soul","Wagon",76],["Hyundai Tucson","SUV",69],["Nissan Rogue","SUV",67],["Tesla Model 3","Sedan",63],["Tesla Model Y","SUV",62],["Toyota Camry","Sedan",62],["Jeep Compass","SUV",61],["Nissan Versa","Sedan",61],["Jeep Wrangler","SUV",52],["Jeep Cherokee","SUV",43],["Kia Sportage","SUV",41],["Chevrolet Malibu","Sedan",38]]),
+...p("2026-04-06",[["Chevrolet Equinox","SUV",166],["Chevrolet Trax","SUV",165],["Chevrolet Trailblazer","SUV",154],["Buick Envista","SUV",134],["Nissan Altima","Sedan",126],["Kia K4","Sedan",105],["Buick Encore GX","SUV",95],["Nissan Rogue","SUV",89],["Toyota Camry","Sedan",82],["Kia Soul","Wagon",75],["Tesla Model 3","Sedan",71],["Nissan Sentra","Sedan",71],["Chevrolet Malibu","Sedan",69],["Tesla Model Y","SUV",61],["Jeep Compass","SUV",58],["Nissan Versa","Sedan",54],["Jeep Wrangler","SUV",43],["Jeep Cherokee","SUV",41],["Toyota RAV4","SUV",40],["Hyundai Kona","SUV",38]]),
+...p("2026-03-30",[["Chevrolet Equinox","SUV",180],["Chevrolet Trailblazer","SUV",180],["Chevrolet Trax","SUV",158],["Buick Envista","SUV",137],["Toyota Camry","Sedan",117],["Nissan Altima","Sedan",106],["Kia K4","Sedan",93],["Chevrolet Malibu","Sedan",90],["Tesla Model Y","SUV",80],["Nissan Rogue","SUV",78],["Jeep Compass","SUV",74],["Buick Encore GX","SUV",72],["Tesla Model 3","Sedan",68],["Kia Soul","Wagon",65],["Nissan Sentra","Sedan",63],["Jeep Wrangler","SUV",57],["Nissan Versa","Sedan",50],["Hyundai Tucson","SUV",43],["Toyota RAV4","SUV",41],["Ford Escape","SUV",38]]),
+...p("2026-03-23",[["Chevrolet Trax","SUV",186],["Chevrolet Trailblazer","SUV",180],["Chevrolet Equinox","SUV",174],["Nissan Altima","Sedan",158],["Buick Envista","SUV",133],["Toyota Camry","Sedan",129],["Kia K4","Sedan",111],["Chevrolet Malibu","Sedan",107],["Tesla Model Y","SUV",80],["Kia Soul","Wagon",80],["Nissan Rogue","SUV",75],["Tesla Model 3","Sedan",71],["Buick Encore GX","SUV",68],["Nissan Sentra","Sedan",58],["Jeep Compass","SUV",53],["Jeep Wrangler","SUV",53],["Nissan Versa","Sedan",48],["Chevrolet Silverado","Pickup",48],["Hyundai Tucson","SUV",46],["Toyota RAV4","SUV",42]]),
+...p("2026-03-16",[["Chevrolet Trax","SUV",223],["Chevrolet Equinox","SUV",176],["Chevrolet Trailblazer","SUV",148],["Toyota Camry","Sedan",144],["Chevrolet Malibu","Sedan",139],["Nissan Altima","Sedan",119],["Kia K4","Sedan",114],["Buick Envista","SUV",110],["Kia Soul","Wagon",81],["Nissan Rogue","SUV",77],["Tesla Model Y","SUV",77],["Tesla Model 3","Sedan",69],["Buick Encore GX","SUV",64],["Nissan Sentra","Sedan",60],["Nissan Versa","Sedan",58],["Hyundai Kona","SUV",57],["Jeep Compass","SUV",49],["Volkswagen Jetta","Sedan",49],["Jeep Cherokee","SUV",42],["Toyota RAV4","SUV",41]]),
+...p("2026-03-09",[["Chevrolet Trax","SUV",199],["Chevrolet Trailblazer","SUV",183],["Chevrolet Malibu","Sedan",180],["Chevrolet Equinox","SUV",160],["Nissan Altima","Sedan",131],["Kia K4","Sedan",123],["Toyota Camry","Sedan",98],["Buick Envista","SUV",96],["Kia Soul","Wagon",93],["Nissan Rogue","SUV",75],["Buick Encore GX","SUV",71],["Tesla Model Y","SUV",59],["Nissan Versa","Sedan",57],["Tesla Model 3","Sedan",55],["Jeep Compass","SUV",53],["Toyota RAV4","SUV",52],["Nissan Sentra","Sedan",47],["Hyundai Kona","SUV",45],["Jeep Cherokee","SUV",45],["Jeep Wrangler","SUV",44]]),
+...p("2026-03-02",[["Chevrolet Trax","SUV",261],["Chevrolet Trailblazer","SUV",171],["Nissan Altima","Sedan",156],["Chevrolet Malibu","Sedan",137],["Chevrolet Equinox","SUV",123],["Kia K4","Sedan",118],["Toyota Camry","Sedan",110],["Buick Envista","SUV",104],["Nissan Rogue","SUV",96],["Kia Soul","Wagon",79],["Nissan Sentra","Sedan",76],["Buick Encore GX","SUV",70],["Hyundai Kona","SUV",62],["Nissan Versa","Sedan",57],["Jeep Compass","SUV",56],["Jeep Cherokee","SUV",51],["Toyota RAV4","SUV",50],["Volkswagen Jetta","Sedan",46],["Tesla Model 3","Sedan",45],["Jeep Grand Cherokee","SUV",49]]),
+...p("2026-02-23",[["Chevrolet Trax","SUV",245],["Chevrolet Trailblazer","SUV",193],["Chevrolet Equinox","SUV",138],["Kia K4","Sedan",125],["Nissan Altima","Sedan",124],["Chevrolet Malibu","Sedan",115],["Nissan Rogue","SUV",101],["Buick Envista","SUV",101],["Buick Encore GX","SUV",95],["Toyota Camry","Sedan",79],["Nissan Versa","Sedan",61],["Nissan Sentra","Sedan",60],["Toyota RAV4","SUV",56],["Hyundai Kona","SUV",56],["Kia Soul","Wagon",54],["Jeep Cherokee","SUV",54],["Nissan Sentra","Sedan",52],["Volkswagen Tiguan","SUV",55],["Chevrolet Silverado","Pickup",47],["Kia Forte","Sedan",51]]),
+...p("2026-02-16",[["Chevrolet Trax","SUV",200],["Chevrolet Trailblazer","SUV",133],["Chevrolet Malibu","Sedan",107],["Nissan Rogue","SUV",100],["Chevrolet Equinox","SUV",90],["Nissan Altima","Sedan",85],["Toyota Camry","Sedan",76],["Kia K4","Sedan",75],["Buick Envista","SUV",64],["Toyota RAV4","SUV",62],["Buick Encore GX","SUV",58],["Ford Edge","SUV",49],["Nissan Versa","Sedan",45],["Nissan Sentra","Sedan",44],["Tesla Model 3","Sedan",42],["Jeep Wrangler","SUV",40],["Hyundai Kona","SUV",40],["Kia Soul","Wagon",40],["Jeep Cherokee","SUV",39],["Chevrolet Silverado","Pickup",38]]),
+...p("2026-02-09",[["Chevrolet Trax","SUV",183],["Nissan Rogue","SUV",117],["Chevrolet Trailblazer","SUV",112],["Toyota Camry","Sedan",96],["Chevrolet Malibu","Sedan",93],["Chevrolet Equinox","SUV",91],["Nissan Altima","Sedan",85],["Kia K4","Sedan",78],["Buick Encore GX","SUV",67],["Hyundai Kona","SUV",52],["Ford Edge","SUV",50],["Toyota RAV4","SUV",46],["Nissan Versa","Sedan",45],["Tesla Model Y","SUV",45],["Tesla Model 3","Sedan",41],["Nissan Sentra","Sedan",41],["Jeep Cherokee","SUV",41],["Kia Forte","Sedan",40],["Jeep Wrangler","SUV",39],["Kia Sportage","SUV",37]]),
+...p("2026-02-02",[["Chevrolet Trax","SUV",173],["Nissan Rogue","SUV",135],["Chevrolet Trailblazer","SUV",128],["Chevrolet Malibu","Sedan",95],["Toyota Camry","Sedan",84],["Chevrolet Equinox","SUV",81],["Nissan Altima","Sedan",69],["Kia K4","Sedan",63],["Hyundai Kona","SUV",59],["Buick Encore GX","SUV",53],["Nissan Sentra","Sedan",53],["Toyota RAV4","SUV",50],["Kia Soul","Wagon",43],["Tesla Model 3","Sedan",42],["Jeep Cherokee","SUV",41],["Chevrolet Silverado","Pickup",41],["Ford Edge","SUV",40],["Buick Envista","SUV",39],["Nissan Versa","Sedan",39],["Tesla Model Y","SUV",39]]),
+...p("2026-01-26",[["Chevrolet Trax","SUV",151],["Chevrolet Trailblazer","SUV",104],["Nissan Rogue","SUV",82],["Toyota Camry","Sedan",81],["Chevrolet Malibu","Sedan",75],["Chevrolet Equinox","SUV",63],["Buick Encore GX","SUV",48],["Nissan Altima","Sedan",43],["Nissan Sentra","Sedan",43],["Tesla Model Y","SUV",43],["Kia K4","Sedan",39],["Ford Edge","SUV",37],["Jeep Wrangler","SUV",37],["Hyundai Kona","SUV",35],["Jeep Compass","SUV",34],["Buick Envista","SUV",34],["Toyota RAV4","SUV",33],["Kia Soul","Wagon",32],["Toyota Corolla","Sedan",31],["Tesla Model 3","Sedan",31]]),
+...p("2026-01-19",[["Chevrolet Trax","SUV",111],["Chevrolet Malibu","Sedan",107],["Nissan Rogue","SUV",92],["Toyota Camry","Sedan",84],["Chevrolet Trailblazer","SUV",81],["Chevrolet Equinox","SUV",67],["Hyundai Kona","SUV",52],["Buick Envista","SUV",51],["Nissan Sentra","Sedan",47],["Tesla Model Y","SUV",43],["Ford Edge","SUV",42],["Nissan Altima","Sedan",41],["Kia Forte","Sedan",35],["Toyota Corolla","Sedan",35],["Tesla Model 3","Sedan",35],["Kia Soul","Wagon",34],["Toyota RAV4","SUV",32],["Buick Encore GX","SUV",32],["Jeep Grand Cherokee","SUV",31],["Chevrolet Malibu","Sedan",38]]),
+...p("2026-01-12",[["Chevrolet Malibu","Sedan",125],["Chevrolet Trax","SUV",120],["Nissan Rogue","SUV",89],["Chevrolet Equinox","SUV",88],["Toyota Camry","Sedan",85],["Chevrolet Trailblazer","SUV",80],["Tesla Model Y","SUV",71],["Nissan Sentra","Sedan",65],["Ford Edge","SUV",49],["Tesla Model 3","Sedan",49],["Buick Envista","SUV",43],["Nissan Altima","Sedan",43],["Kia Forte","Sedan",42],["Buick Encore GX","SUV",41],["Nissan Sentra","Sedan",40],["Hyundai Kona","SUV",39],["Toyota RAV4","SUV",37],["Jeep Compass","SUV",37],["Toyota Corolla","Sedan",36],["Mitsubishi Outlander","SUV",41]]),
+...p("2026-01-05",[["Chevrolet Malibu","Sedan",132],["Chevrolet Trax","SUV",122],["Toyota Camry","Sedan",112],["Nissan Rogue","SUV",95],["Chevrolet Trailblazer","SUV",80],["Chevrolet Equinox","SUV",79],["Tesla Model Y","SUV",73],["Nissan Sentra","Sedan",73],["Tesla Model 3","Sedan",65],["Ford Edge","SUV",58],["Hyundai Kona","SUV",58],["Kia Forte","Sedan",56],["Jeep Compass","SUV",48],["Nissan Altima","Sedan",48],["Buick Envista","SUV",39],["Toyota RAV4","SUV",38],["Hyundai Elantra","Sedan",37],["Jeep Cherokee","SUV",40],["GMC Terrain","SUV",36],["Tesla Model 3","Sedan",44]])
 ];
+function getVehiclesForWeek(week){
+  const rows=VEHICLE_WEEKLY.filter(r=>r.week===week);
+  const agg={};
+  rows.forEach(r=>{
+    if(!agg[r.name])agg[r.name]={name:r.name,body:r.code,value:0};
+    agg[r.name].value+=r.value;
+  });
+  return Object.values(agg).sort((a,b)=>b.value-a.value).map((v,i)=>({...v,rank:i+1}));
+}
+function updateVehicleDropdown(){
+  const week=document.getElementById('week-select').value;
+  const sel=document.getElementById('vehicle-select');
+  const prev=sel.value;
+  const vehicles=getVehiclesForWeek(week);
+  sel.innerHTML='<option value="">All Vehicles</option>'+vehicles.map(v=>
+    `<option value="${v.name}">${v.name} — ${fmt(v.value)}</option>`).join('');
+  if(vehicles.find(v=>v.name===prev))sel.value=prev;
+  updateSpotlight();
+}
 function updateSpotlight(){
-  const sel=document.getElementById('vehicle-select').value;
+  const selVal=document.getElementById('vehicle-select').value;
   const panel=document.getElementById('vehicle-spotlight');
-  if(!sel){panel.style.display='none';return}
-  const v=VEHICLES.find(x=>x.name===sel);
+  if(!selVal){panel.style.display='none';return}
+  const week=document.getElementById('week-select').value;
+  const vehicles=getVehiclesForWeek(week);
+  const v=vehicles.find(x=>x.name===selVal);
   if(!v){panel.style.display='none';return}
+  const allWeekTotals=WEEKS.map(w=>{const d=VEHICLE_WEEKLY.filter(r=>r.week===w&&r.name===selVal);return d.reduce((s,r)=>s+r.value,0)});
+  const ytdTotal=allWeekTotals.reduce((s,x)=>s+x,0);
   panel.style.display='block';
   document.getElementById('spotlight-name').textContent=v.name;
-  document.getElementById('spotlight-body').textContent=v.year+' '+v.body;
-  document.getElementById('spotlight-total').textContent=fmt(v.total);
-  document.getElementById('spotlight-year').textContent=v.year;
+  document.getElementById('spotlight-body').textContent=v.body;
+  document.getElementById('spotlight-total').textContent=fmt(ytdTotal);
+  document.getElementById('spotlight-year').textContent=fmt(v.value);
   document.getElementById('spotlight-style').textContent=v.body;
   document.getElementById('spotlight-rank').textContent='#'+v.rank;
 }
 document.getElementById('vehicle-select').addEventListener('change',updateSpotlight);
-applyFilters();setTimeout(()=>map.invalidateSize(),100);
+updateVehicleDropdown();applyFilters();setTimeout(()=>map.invalidateSize(),100);
 </script>
 </body>
 </html>
