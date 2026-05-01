@@ -505,7 +505,6 @@
                 <option value="recon">Recon Centers</option>
                 <option value="hub">Hubs</option>
                 <option value="vm">Vending Machines</option>
-                <option value="mh">Market Hubs</option>
                 <option value="overflow">Overflow Lots</option>
             </select>
         </div>
@@ -734,10 +733,9 @@ function matchFilter(code,filter){
   if(isMP(code))return false;
   if(filter==='all')return true;
   if(filter==='ic')return code.endsWith('-IC')&&!code.startsWith('A');
-  if(filter==='recon')return code.startsWith('A')||code.includes('NNJ');
+  if(filter==='recon')return code.startsWith('A')||code.includes('NNJ')||code.endsWith('-MH');
   if(filter==='hub')return code.endsWith('-HB')||code.endsWith('-LH');
   if(filter==='vm')return code.endsWith('-VM');
-  if(filter==='mh')return code.endsWith('-MH');
   if(filter==='overflow')return code.endsWith('-OL');
   return true;
 }
