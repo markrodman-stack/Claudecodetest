@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carvana Vehicle Movement Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0a0e1a;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #111827 0%, #1e293b 100%);
+            padding: 1.5rem 2rem;
+            border-bottom: 2px solid #00d4ff;
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: #00d4ff;
+            letter-spacing: -0.5px;
+        }
+
+        .header .subtitle {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-top: 0.25rem;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            background: #111827;
+            padding: 1.25rem 2rem;
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-width: 180px;
+        }
+
+        .filter-group label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+        }
+
+        select {
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 0.625rem 0.875rem;
+            font-size: 0.875rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        select:hover {
+            border-color: #00d4ff;
+            background: #252f3f;
+        }
+
+        select:focus {
+            border-color: #00d4ff;
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        /* KPI Summary Strip */
+        .kpi-strip {
+            background: #111827;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #1e293b;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .kpi-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            transition: all 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            border-color: #00d4ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.15);
+        }
+
+        .kpi-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #00d4ff;
+            line-height: 1;
+        }
+
+        .kpi-change {
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .kpi-change.positive {
+            color: #00e676;
+        }
+
+        .kpi-change.negative {
+            color: #ff4081;
+        }
+
+        /* Main Content Area */
+        .content {
+            display: flex;
+            height: calc(100vh - 280px);
+            min-height: 600px;
+        }
+
+        .map-section {
+            width: 60%;
+            position: relative;
+            border-right: 1px solid #1e293b;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0a0e1a;
+        }
+
+        .ranking-section {
+            width: 40%;
+            overflow-y: auto;
+            background: #0a0e1a;
+        }
+
+        .ranking-section::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .ranking-section::-webkit-scrollbar-track {
+            background: #111827;
+        }
+
+        .ranking-section::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        .ranking-section::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Ranking Table */
+        .ranking-header {
+            background: #111827;
+            padding: 1rem 1.5rem;
+            border-bottom: 2px solid #1e293b;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .ranking-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #00d4ff;
+        }
+
+        .ranking-table {
+            width: 100%;
+        }
+
+        .ranking-table-header {
+            background: #111827;
+            position: sticky;
+            top: 60px;
+            z-index: 9;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .ranking-table-header-row {
+            display: grid;
+            grid-template-columns: 60px 1fr 80px 100px 80px 100px;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            gap: 0.75rem;
+        }
+
+        .ranking-row {
+            display: grid;
+            grid-template-columns: 60px 1fr 80px 100px 80px 100px;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #1e293b;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .ranking-row:hover {
+            background: #111827;
+            border-left: 3px solid #00d4ff;
+            padding-left: calc(1.5rem - 3px);
+        }
+
+        .rank-badge {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .rank-badge.gold {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #0a0e1a;
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+        }
+
+        .rank-badge.silver {
+            background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+            color: #0a0e1a;
+            box-shadow: 0 4px 12px rgba(192, 192, 192, 0.3);
+        }
+
+        .rank-badge.bronze {
+            background: linear-gradient(135deg, #cd7f32 0%, #e5a157 100%);
+            color: #0a0e1a;
+            box-shadow: 0 4px 12px rgba(205, 127, 50, 0.3);
+        }
+
+        .rank-badge.default {
+            background: #1e293b;
+            color: #94a3b8;
+            border: 1px solid #334155;
+        }
+
+        .location-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .location-name {
+            font-weight: 600;
+            color: #e2e8f0;
+            font-size: 0.875rem;
+        }
+
+        .location-code {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .metric-value {
+            font-weight: 700;
+            font-size: 1.125rem;
+            color: #00d4ff;
+        }
+
+        .trend-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+        }
+
+        .trend-arrow {
+            font-size: 1rem;
+        }
+
+        .trend-arrow.up {
+            color: #00e676;
+        }
+
+        .trend-arrow.down {
+            color: #ff4081;
+        }
+
+        .trend-arrow.neutral {
+            color: #64748b;
+        }
+
+        .sparkline {
+            width: 60px;
+            height: 24px;
+        }
+
+        .cost-value {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        /* Leaflet Dark Theme Override */
+        .leaflet-container {
+            background: #0a0e1a;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: #111827;
+            color: #e2e8f0;
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+        }
+
+        .leaflet-popup-tip {
+            background: #111827;
+        }
+
+        .leaflet-popup-close-button {
+            color: #94a3b8 !important;
+        }
+
+        .leaflet-popup-close-button:hover {
+            color: #00d4ff !important;
+        }
+
+        /* Custom Marker Styles */
+        .location-marker {
+            background: #00d4ff;
+            border: 3px solid #0a0e1a;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .location-marker.highlighted {
+            width: 26px;
+            height: 26px;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🚗 Carvana Vehicle Movement Tracker</h1>
+        <div class="subtitle">Real-time location performance and logistics analytics</div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label for="week-select">Week</label>
+            <select id="week-select">
+                <option value="2026-04-27">Apr 27 - May 3, 2026</option>
+                <option value="2026-04-20">Apr 20 - Apr 26, 2026</option>
+                <option value="2026-04-13">Apr 13 - Apr 19, 2026</option>
+                <option value="2026-04-06">Apr 6 - Apr 12, 2026</option>
+                <option value="2026-03-30">Mar 30 - Apr 5, 2026</option>
+                <option value="2026-03-23">Mar 23 - Mar 29, 2026</option>
+                <option value="2026-03-16">Mar 16 - Mar 22, 2026</option>
+                <option value="2026-03-09">Mar 9 - Mar 15, 2026</option>
+                <option value="2026-03-02">Mar 2 - Mar 8, 2026</option>
+                <option value="2026-02-23">Feb 23 - Mar 1, 2026</option>
+                <option value="2026-02-16">Feb 16 - Feb 22, 2026</option>
+                <option value="2026-02-09">Feb 9 - Feb 15, 2026</option>
+                <option value="2026-02-02">Feb 2 - Feb 8, 2026</option>
+                <option value="2026-01-26">Jan 26 - Feb 1, 2026</option>
+                <option value="2026-01-19">Jan 19 - Jan 25, 2026</option>
+                <option value="2026-01-12">Jan 12 - Jan 18, 2026</option>
+                <option value="2026-01-05">Jan 5 - Jan 11, 2026</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="metric-select">Metric</label>
+            <select id="metric-select">
+                <option value="moved">Units Moved</option>
+                <option value="reconditioned">Units Reconditioned</option>
+                <option value="sold">Units Sold</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="location-type-select">Location Type</label>
+            <select id="location-type-select">
+                <option value="all">All Locations</option>
+                <option value="ic">ICs Only</option>
+                <option value="recon">Recon Centers</option>
+                <option value="hub">Hubs</option>
+                <option value="overflow">Overflow Lots</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="sort-select">Sort By</label>
+            <select id="sort-select">
+                <option value="rank-desc">Rank (Highest First)</option>
+                <option value="rank-asc">Rank (Lowest First)</option>
+                <option value="alpha">Alphabetical</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- KPI Summary Strip -->
+    <div class="kpi-strip">
+        <div class="kpi-card">
+            <div class="kpi-label">Total Units This Week</div>
+            <div class="kpi-value" id="kpi-total">0</div>
+            <div class="kpi-change" id="kpi-total-change"></div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Top Performer</div>
+            <div class="kpi-value" id="kpi-top">—</div>
+            <div class="kpi-change" id="kpi-top-value"></div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Average Per Location</div>
+            <div class="kpi-value" id="kpi-avg">0</div>
+            <div class="kpi-change" id="kpi-avg-change"></div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Active Locations</div>
+            <div class="kpi-value" id="kpi-locations">0</div>
+            <div class="kpi-change" id="kpi-locations-change"></div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="content">
+        <!-- Map Section (Left 60%) -->
+        <div class="map-section">
+            <div id="map"></div>
+        </div>
+
+        <!-- Ranking Section (Right 40%) -->
+        <div class="ranking-section">
+            <div class="ranking-header">
+                <h2>Location Rankings</h2>
+            </div>
+            <div class="ranking-table">
+                <div class="ranking-table-header">
+                    <div class="ranking-table-header-row">
+                        <div>Rank</div>
+                        <div>Location</div>
+                        <div>Code</div>
+                        <div>Value</div>
+                        <div>Trend</div>
+                        <div>Avg Cost</div>
+                    </div>
+                </div>
+                <div id="ranking-rows">
+                    <!-- Ranking rows will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const GPS={
+"CON-IC":[35.37,-80.63],"NNJ-IC":[40.55,-74.58],"DEL-IC":[40.04,-74.93],"ELY-IC":[41.41,-82.16],
+"HNS-IC":[28.08,-81.60],"IND-IC":[39.82,-85.92],"UNI-IC":[41.46,-87.73],"HEA-IC":[40.00,-82.47],
+"CHE-IC":[37.32,-77.40],"BLM-IC":[32.85,-97.34],"PHX-IC":[33.44,-112.26],"LCA-IC":[34.02,-117.38],
+"OKC-IC":[35.41,-97.63],"HST-IC":[29.94,-95.49],"ROC-IC":[38.83,-121.31],"ATG-IC":[33.54,-84.55],
+"DAL-IC":[32.62,-96.74],"BMA-IC":[42.26,-71.41],"TRE-IC":[39.46,-84.47],"WME-IC":[35.18,-90.21],
+"KCM-IC":[38.84,-94.54],"WND-IC":[33.99,-83.75],"WND-OL":[33.99,-83.75],"BES-IC":[33.37,-86.94],
+"SAA-IC":[29.30,-98.39],"BNY-IC":[43.00,-78.53],"AIN-IC":[39.73,-86.35],"CAZ-IC":[33.31,-111.96],
+"TCA-IC":[37.73,-121.54],"NTN-IC":[36.16,-86.78],"TOO-IC":[40.54,-112.35],"LNV-IC":[36.21,-115.22],
+"POS-IC":[45.55,-122.42],"SDC-IC":[32.72,-117.16],"SWA-IC":[47.31,-122.23],"EOR-IC":[44.05,-123.09],
+"LNY-IC":[40.84,-72.88],"CCO-IC":[38.71,-104.75],"PAZ-HB":[33.43,-112.10],"MOB-LH":[30.69,-88.04],
+"WFM-HB":[43.01,-83.69],"MOR-LH":[34.99,-106.05],"BLH-HB":[39.27,-76.56],"MMC-HB":[44.98,-93.27]
+};
+const WEEKS=["2026-01-05","2026-01-12","2026-01-19","2026-01-26","2026-02-02","2026-02-09","2026-02-16","2026-02-23","2026-03-02","2026-03-09","2026-03-16","2026-03-23","2026-03-30","2026-04-06","2026-04-13","2026-04-20","2026-04-27"];
+function p(w,entries){return entries.map(e=>({week:w,code:e[0],name:e[1],value:e[2]}))}
+const MOVES_DATA=[
+...p("2026-04-27",[["CON-IC","Concord",2064],["NNJ-IC","New Jersey",1981],["DEL-IC","Delanco",1823],["WND-OL","Winder OL",1782],["ELY-IC","Elyria",1737],["HNS-IC","Haines City",1711],["IND-IC","Indianapolis",1673],["UNI-IC","University Park",1642],["HEA-IC","Heath",1528],["CHE-IC","Chesterfield",1400],["BLM-IC","Blue Mound",1311],["PHX-IC","Tolleson",1219],["LCA-IC","Riverside",1179],["OKC-IC","Oklahoma City",1052],["HST-IC","Houston",995],["ROC-IC","Rocklin",987],["ATG-IC","Atlanta",961],["DAL-IC","Dallas",895],["BMA-IC","Boston",885],["TRE-IC","Trenton",876],["WME-IC","West Memphis",839],["KCM-IC","Kansas City",834],["WND-IC","Winder",820],["BES-IC","Bessemer",760],["SAA-IC","San Antonio",645],["BNY-IC","Buffalo",644],["AIN-IC","Plainfield",532],["CAZ-IC","Chandler",503],["TCA-IC","Tracy",467],["NTN-IC","Nashville",442]]),
+...p("2026-04-20",[["NNJ-IC","New Jersey",2728],["CON-IC","Concord",2714],["IND-IC","Indianapolis",2576],["WND-OL","Winder OL",2559],["HEA-IC","Heath",2390],["DEL-IC","Delanco",2363],["UNI-IC","University Park",2272],["HNS-IC","Haines City",2265],["BLM-IC","Blue Mound",2127],["ELY-IC","Elyria",2124],["CHE-IC","Chesterfield",1886],["LCA-IC","Riverside",1744],["OKC-IC","Oklahoma City",1728],["PHX-IC","Tolleson",1662],["ROC-IC","Rocklin",1613],["ATG-IC","Atlanta",1522],["HST-IC","Houston",1410],["BMA-IC","Boston",1262],["DAL-IC","Dallas",1258],["KCM-IC","Kansas City",1213],["TRE-IC","Trenton",1196],["WME-IC","West Memphis",1167],["BES-IC","Bessemer",1122],["SAA-IC","San Antonio",926],["WND-IC","Winder",914],["BNY-IC","Buffalo",891],["AIN-IC","Plainfield",833],["LNV-IC","Las Vegas",765],["CAZ-IC","Chandler",752],["NTN-IC","Nashville",714]]),
+...p("2026-04-13",[["CON-IC","Concord",2522],["IND-IC","Indianapolis",2495],["NNJ-IC","New Jersey",2433],["WND-OL","Winder OL",2374],["HNS-IC","Haines City",2265],["DEL-IC","Delanco",2156],["HEA-IC","Heath",2065],["UNI-IC","University Park",2063],["ELY-IC","Elyria",1907],["BLM-IC","Blue Mound",1864],["CHE-IC","Chesterfield",1792],["LCA-IC","Riverside",1736],["PHX-IC","Tolleson",1712],["OKC-IC","Oklahoma City",1592],["ROC-IC","Rocklin",1590],["ATG-IC","Atlanta",1564],["KCM-IC","Kansas City",1358],["HST-IC","Houston",1309],["TRE-IC","Trenton",1222],["BMA-IC","Boston",1189],["BES-IC","Bessemer",1162],["WME-IC","West Memphis",1123],["DAL-IC","Dallas",1049],["WND-IC","Winder",914],["SAA-IC","San Antonio",901],["BNY-IC","Buffalo",879],["CAZ-IC","Chandler",792],["AIN-IC","Plainfield",742],["LNV-IC","Las Vegas",725],["TCA-IC","Tracy",674]]),
+...p("2026-04-06",[["NNJ-IC","New Jersey",2853],["IND-IC","Indianapolis",2687],["CON-IC","Concord",2656],["HNS-IC","Haines City",2417],["WND-OL","Winder OL",2396],["DEL-IC","Delanco",2376],["HEA-IC","Heath",2153],["UNI-IC","University Park",2149],["BLM-IC","Blue Mound",1991],["ELY-IC","Elyria",1961],["CHE-IC","Chesterfield",1915],["LCA-IC","Riverside",1699],["PHX-IC","Tolleson",1614],["ATG-IC","Atlanta",1538],["OKC-IC","Oklahoma City",1466],["ROC-IC","Rocklin",1465],["HST-IC","Houston",1429],["KCM-IC","Kansas City",1319],["TRE-IC","Trenton",1241],["BES-IC","Bessemer",1215],["BMA-IC","Boston",1170],["WME-IC","West Memphis",1154],["WND-IC","Winder",971],["SAA-IC","San Antonio",957],["BNY-IC","Buffalo",947],["DAL-IC","Dallas",941],["CAZ-IC","Chandler",795],["AIN-IC","Plainfield",747],["LNV-IC","Las Vegas",716],["NTN-IC","Nashville",699]]),
+...p("2026-03-30",[["NNJ-IC","New Jersey",2999],["CON-IC","Concord",2899],["HNS-IC","Haines City",2554],["WND-OL","Winder OL",2534],["IND-IC","Indianapolis",2503],["DEL-IC","Delanco",2298],["UNI-IC","University Park",2220],["HEA-IC","Heath",2080],["ELY-IC","Elyria",2068],["CHE-IC","Chesterfield",1958],["BLM-IC","Blue Mound",1892],["LCA-IC","Riverside",1871],["PHX-IC","Tolleson",1695],["ROC-IC","Rocklin",1586],["ATG-IC","Atlanta",1518],["OKC-IC","Oklahoma City",1458],["HST-IC","Houston",1336],["BES-IC","Bessemer",1335],["WME-IC","West Memphis",1192],["BMA-IC","Boston",1183],["TRE-IC","Trenton",1177],["KCM-IC","Kansas City",1167],["DAL-IC","Dallas",1093],["BNY-IC","Buffalo",1072],["SAA-IC","San Antonio",898],["CAZ-IC","Chandler",859],["WND-IC","Winder",816],["AIN-IC","Plainfield",765],["LNV-IC","Las Vegas",714],["TCA-IC","Tracy",684]]),
+...p("2026-03-23",[["CON-IC","Concord",2908],["IND-IC","Indianapolis",2819],["DEL-IC","Delanco",2792],["HNS-IC","Haines City",2673],["WND-OL","Winder OL",2614],["NNJ-IC","New Jersey",2482],["ELY-IC","Elyria",2276],["HEA-IC","Heath",2240],["UNI-IC","University Park",2156],["BLM-IC","Blue Mound",2078],["CHE-IC","Chesterfield",1957],["LCA-IC","Riverside",1911],["PHX-IC","Tolleson",1720],["ROC-IC","Rocklin",1613],["OKC-IC","Oklahoma City",1569],["ATG-IC","Atlanta",1564],["BES-IC","Bessemer",1383],["HST-IC","Houston",1325],["WME-IC","West Memphis",1282],["BMA-IC","Boston",1242],["DAL-IC","Dallas",1169],["TRE-IC","Trenton",1148],["KCM-IC","Kansas City",1126],["BNY-IC","Buffalo",1071],["SAA-IC","San Antonio",893],["WND-IC","Winder",872],["LNV-IC","Las Vegas",777],["AIN-IC","Plainfield",770],["TCA-IC","Tracy",762],["CAZ-IC","Chandler",748]]),
+...p("2026-03-16",[["CON-IC","Concord",2746],["HNS-IC","Haines City",2710],["IND-IC","Indianapolis",2687],["WND-OL","Winder OL",2610],["DEL-IC","Delanco",2542],["NNJ-IC","New Jersey",2458],["HEA-IC","Heath",2431],["ELY-IC","Elyria",2236],["UNI-IC","University Park",2072],["BLM-IC","Blue Mound",2029],["LCA-IC","Riverside",1908],["CHE-IC","Chesterfield",1798],["PHX-IC","Tolleson",1636],["ROC-IC","Rocklin",1570],["OKC-IC","Oklahoma City",1566],["ATG-IC","Atlanta",1553],["BES-IC","Bessemer",1388],["HST-IC","Houston",1338],["WME-IC","West Memphis",1272],["BMA-IC","Boston",1268],["TRE-IC","Trenton",1167],["KCM-IC","Kansas City",1164],["DAL-IC","Dallas",1021],["BNY-IC","Buffalo",920],["SAA-IC","San Antonio",844],["WND-IC","Winder",807],["TCA-IC","Tracy",797],["CAZ-IC","Chandler",783],["LNV-IC","Las Vegas",701],["AIN-IC","Plainfield",698]]),
+...p("2026-03-09",[["CON-IC","Concord",2933],["IND-IC","Indianapolis",2908],["WND-OL","Winder OL",2620],["HNS-IC","Haines City",2608],["DEL-IC","Delanco",2592],["NNJ-IC","New Jersey",2490],["HEA-IC","Heath",2430],["ELY-IC","Elyria",2221],["UNI-IC","University Park",2181],["CHE-IC","Chesterfield",2137],["BLM-IC","Blue Mound",1993],["LCA-IC","Riverside",1886],["PHX-IC","Tolleson",1701],["OKC-IC","Oklahoma City",1594],["ATG-IC","Atlanta",1510],["ROC-IC","Rocklin",1507],["BES-IC","Bessemer",1441],["WME-IC","West Memphis",1322],["BMA-IC","Boston",1295],["TRE-IC","Trenton",1293],["HST-IC","Houston",1277],["KCM-IC","Kansas City",1249],["DAL-IC","Dallas",1095],["BNY-IC","Buffalo",1075],["SAA-IC","San Antonio",851],["WND-IC","Winder",838],["CAZ-IC","Chandler",867],["AIN-IC","Plainfield",784],["TCA-IC","Tracy",768],["LNV-IC","Las Vegas",742]]),
+...p("2026-03-02",[["CON-IC","Concord",3059],["HNS-IC","Haines City",2857],["IND-IC","Indianapolis",2850],["DEL-IC","Delanco",2805],["WND-OL","Winder OL",2676],["HEA-IC","Heath",2425],["NNJ-IC","New Jersey",2411],["UNI-IC","University Park",2254],["CHE-IC","Chesterfield",2222],["ELY-IC","Elyria",2193],["BLM-IC","Blue Mound",2105],["LCA-IC","Riverside",1858],["PHX-IC","Tolleson",1791],["OKC-IC","Oklahoma City",1650],["BES-IC","Bessemer",1628],["ROC-IC","Rocklin",1472],["ATG-IC","Atlanta",1465],["HST-IC","Houston",1391],["WME-IC","West Memphis",1387],["TRE-IC","Trenton",1366],["BMA-IC","Boston",1309],["KCM-IC","Kansas City",1243],["DAL-IC","Dallas",1226],["BNY-IC","Buffalo",978],["SAA-IC","San Antonio",854],["WND-IC","Winder",790],["CAZ-IC","Chandler",762],["AIN-IC","Plainfield",745],["LNV-IC","Las Vegas",738],["TCA-IC","Tracy",683]]),
+...p("2026-02-23",[["IND-IC","Indianapolis",3045],["CON-IC","Concord",2901],["HNS-IC","Haines City",2855],["WND-OL","Winder OL",2553],["HEA-IC","Heath",2415],["DEL-IC","Delanco",2375],["CHE-IC","Chesterfield",2318],["UNI-IC","University Park",2198],["BLM-IC","Blue Mound",2179],["NNJ-IC","New Jersey",2103],["ELY-IC","Elyria",2057],["PHX-IC","Tolleson",1932],["LCA-IC","Riverside",1869],["OKC-IC","Oklahoma City",1668],["HST-IC","Houston",1476],["ATG-IC","Atlanta",1439],["ROC-IC","Rocklin",1433],["WME-IC","West Memphis",1408],["BES-IC","Bessemer",1385],["KCM-IC","Kansas City",1362],["TRE-IC","Trenton",1334],["DAL-IC","Dallas",1030],["BNY-IC","Buffalo",1001],["SAA-IC","San Antonio",877],["CAZ-IC","Chandler",820],["BMA-IC","Boston",800],["AIN-IC","Plainfield",783],["WND-IC","Winder",767],["TCA-IC","Tracy",699],["LNV-IC","Las Vegas",684]]),
+...p("2026-02-16",[["IND-IC","Indianapolis",4319],["CON-IC","Concord",4128],["HNS-IC","Haines City",3817],["CHE-IC","Chesterfield",3704],["HEA-IC","Heath",3222],["ELY-IC","Elyria",2892],["DEL-IC","Delanco",2808],["PHX-IC","Tolleson",2742],["WND-OL","Winder OL",2532],["OKC-IC","Oklahoma City",2482],["UNI-IC","University Park",2424],["NNJ-IC","New Jersey",2248],["ROC-IC","Rocklin",2240],["BLM-IC","Blue Mound",2044],["BES-IC","Bessemer",1968],["LCA-IC","Riverside",1879],["TRE-IC","Trenton",1863],["WME-IC","West Memphis",1754],["WND-IC","Winder",1717],["SAA-IC","San Antonio",1631],["HST-IC","Houston",1359],["ATG-IC","Atlanta",1357],["BMA-IC","Boston",1183],["KCM-IC","Kansas City",1116],["DAL-IC","Dallas",952],["BNY-IC","Buffalo",906],["CAZ-IC","Chandler",724],["AIN-IC","Plainfield",717],["LNV-IC","Las Vegas",635],["TCA-IC","Tracy",601]]),
+...p("2026-02-09",[["CON-IC","Concord",2503],["WND-OL","Winder OL",2450],["HNS-IC","Haines City",2361],["IND-IC","Indianapolis",2322],["DEL-IC","Delanco",2321],["HEA-IC","Heath",2034],["NNJ-IC","New Jersey",2001],["ELY-IC","Elyria",1912],["UNI-IC","University Park",1837],["CHE-IC","Chesterfield",1834],["BLM-IC","Blue Mound",1812],["PHX-IC","Tolleson",1784],["LCA-IC","Riverside",1753],["OKC-IC","Oklahoma City",1717],["ROC-IC","Rocklin",1504],["HST-IC","Houston",1243],["BES-IC","Bessemer",1241],["WME-IC","West Memphis",1170],["ATG-IC","Atlanta",1150],["BMA-IC","Boston",1101],["KCM-IC","Kansas City",1053],["TRE-IC","Trenton",973],["BNY-IC","Buffalo",883],["SAA-IC","San Antonio",834],["DAL-IC","Dallas",769],["WND-IC","Winder",755],["CAZ-IC","Chandler",746],["AIN-IC","Plainfield",639],["TCA-IC","Tracy",634],["LNV-IC","Las Vegas",569]]),
+...p("2026-02-02",[["WND-OL","Winder OL",2422],["IND-IC","Indianapolis",2243],["CON-IC","Concord",2237],["DEL-IC","Delanco",2171],["HNS-IC","Haines City",2040],["BLM-IC","Blue Mound",1947],["NNJ-IC","New Jersey",1898],["HEA-IC","Heath",1892],["PHX-IC","Tolleson",1869],["ELY-IC","Elyria",1723],["CHE-IC","Chesterfield",1705],["UNI-IC","University Park",1647],["LCA-IC","Riverside",1616],["OKC-IC","Oklahoma City",1516],["ROC-IC","Rocklin",1462],["BES-IC","Bessemer",1431],["ATG-IC","Atlanta",1266],["WME-IC","West Memphis",1228],["KCM-IC","Kansas City",1177],["HST-IC","Houston",1142],["TRE-IC","Trenton",1123],["BMA-IC","Boston",1035],["WND-IC","Winder",829],["BNY-IC","Buffalo",809],["DAL-IC","Dallas",808],["CAZ-IC","Chandler",725],["SAA-IC","San Antonio",721],["LNV-IC","Las Vegas",706],["AIN-IC","Plainfield",681],["TCA-IC","Tracy",520]]),
+...p("2026-01-26",[["HNS-IC","Haines City",1983],["WND-OL","Winder OL",1973],["PHX-IC","Tolleson",1696],["LCA-IC","Riverside",1595],["BLM-IC","Blue Mound",1593],["UNI-IC","University Park",1586],["IND-IC","Indianapolis",1566],["NNJ-IC","New Jersey",1536],["DEL-IC","Delanco",1527],["CON-IC","Concord",1512],["ROC-IC","Rocklin",1488],["HEA-IC","Heath",1428],["ELY-IC","Elyria",1424],["OKC-IC","Oklahoma City",1362],["BES-IC","Bessemer",1206],["HST-IC","Houston",1144],["KCM-IC","Kansas City",1115],["CHE-IC","Chesterfield",1111],["TRE-IC","Trenton",1064],["ATG-IC","Atlanta",1031],["SAA-IC","San Antonio",781],["BMA-IC","Boston",724],["WND-IC","Winder",716],["DAL-IC","Dallas",650],["WME-IC","West Memphis",648],["LNV-IC","Las Vegas",631],["BNY-IC","Buffalo",594],["AIN-IC","Plainfield",453],["TOO-IC","Tooele",437],["TCA-IC","Tracy",474]]),
+...p("2026-01-19",[["WND-OL","Winder OL",2123],["HNS-IC","Haines City",2112],["CON-IC","Concord",2036],["IND-IC","Indianapolis",1894],["DEL-IC","Delanco",1870],["NNJ-IC","New Jersey",1850],["PHX-IC","Tolleson",1698],["CHE-IC","Chesterfield",1682],["HEA-IC","Heath",1635],["LCA-IC","Riverside",1615],["ROC-IC","Rocklin",1528],["ELY-IC","Elyria",1483],["BLM-IC","Blue Mound",1447],["UNI-IC","University Park",1233],["BES-IC","Bessemer",1137],["ATG-IC","Atlanta",1126],["OKC-IC","Oklahoma City",997],["TRE-IC","Trenton",978],["HST-IC","Houston",966],["WME-IC","West Memphis",834],["BMA-IC","Boston",817],["SAA-IC","San Antonio",718],["BNY-IC","Buffalo",673],["DAL-IC","Dallas",665],["CAZ-IC","Chandler",654],["WND-IC","Winder",640],["LNV-IC","Las Vegas",566],["AIN-IC","Plainfield",551],["TCA-IC","Tracy",465],["NTN-IC","Nashville",479]]),
+...p("2026-01-12",[["WND-OL","Winder OL",2497],["CON-IC","Concord",2376],["IND-IC","Indianapolis",2344],["HNS-IC","Haines City",2069],["NNJ-IC","New Jersey",2038],["CHE-IC","Chesterfield",2036],["DEL-IC","Delanco",2026],["HEA-IC","Heath",1996],["BLM-IC","Blue Mound",1910],["ELY-IC","Elyria",1696],["UNI-IC","University Park",1662],["LCA-IC","Riverside",1589],["OKC-IC","Oklahoma City",1535],["ROC-IC","Rocklin",1506],["PHX-IC","Tolleson",1482],["BES-IC","Bessemer",1396],["ATG-IC","Atlanta",1224],["TRE-IC","Trenton",1109],["WME-IC","West Memphis",1071],["HST-IC","Houston",1041],["BMA-IC","Boston",992],["DAL-IC","Dallas",869],["WND-IC","Winder",864],["CAZ-IC","Chandler",811],["SAA-IC","San Antonio",759],["BNY-IC","Buffalo",747],["AIN-IC","Plainfield",638],["LNV-IC","Las Vegas",606],["NTN-IC","Nashville",546],["TCA-IC","Tracy",500]]),
+...p("2026-01-05",[["WND-OL","Winder OL",2522],["CON-IC","Concord",2410],["HNS-IC","Haines City",2226],["IND-IC","Indianapolis",2091],["DEL-IC","Delanco",2065],["CHE-IC","Chesterfield",2042],["NNJ-IC","New Jersey",2040],["HEA-IC","Heath",2031],["BLM-IC","Blue Mound",1906],["ELY-IC","Elyria",1689],["UNI-IC","University Park",1663],["PHX-IC","Tolleson",1645],["OKC-IC","Oklahoma City",1557],["LCA-IC","Riverside",1451],["BES-IC","Bessemer",1263],["ATG-IC","Atlanta",1191],["ROC-IC","Rocklin",1182],["HST-IC","Houston",1092],["WME-IC","West Memphis",1024],["WND-IC","Winder",1024],["TRE-IC","Trenton",988],["BMA-IC","Boston",966],["SAA-IC","San Antonio",764],["DAL-IC","Dallas",723],["LNV-IC","Las Vegas",698],["BNY-IC","Buffalo",691],["CAZ-IC","Chandler",687],["AIN-IC","Plainfield",682],["NTN-IC","Nashville",537],["TCA-IC","Tracy",486]])
+];
+const RECON_DATA=[
+...p("2026-04-27",[["UNI-IC","University Park",200],["IND-IC","Indianapolis",179],["HNS-IC","Haines City",175],["CON-IC","Concord",167],["BLM-IC","Blue Mound",128],["PHX-IC","Tolleson",117],["CHE-IC","Chesterfield",114],["WND-IC","Winder",112],["ROC-IC","Rocklin",90],["DEL-IC","Delanco",82],["HEA-IC","Heath",79],["BES-IC","Bessemer",75],["NNJ-IC","New Jersey",75],["TRE-IC","Trenton",75],["ELY-IC","Elyria",70],["BNY-IC","Buffalo",64],["SAA-IC","San Antonio",63],["OKC-IC","Oklahoma City",62],["ATG-IC","Atlanta",53],["TOO-IC","Tooele",52],["KCM-IC","Kansas City",48],["SDC-IC","San Diego",47],["HST-IC","Houston",46],["DAL-IC","Dallas",42],["TCA-IC","Tracy",41],["BMA-IC","Boston",38],["WME-IC","West Memphis",31],["AIN-IC","Plainfield",24],["NTN-IC","Nashville",24],["POS-IC","Portland",22]]),
+...p("2026-04-20",[["CON-IC","Concord",320],["UNI-IC","University Park",247],["HNS-IC","Haines City",206],["IND-IC","Indianapolis",188],["PHX-IC","Tolleson",164],["BLM-IC","Blue Mound",162],["CHE-IC","Chesterfield",160],["NNJ-IC","New Jersey",144],["WND-IC","Winder",141],["OKC-IC","Oklahoma City",129],["TRE-IC","Trenton",125],["HEA-IC","Heath",125],["SAA-IC","San Antonio",113],["BES-IC","Bessemer",100],["ROC-IC","Rocklin",100],["ELY-IC","Elyria",95],["KCM-IC","Kansas City",85],["ATG-IC","Atlanta",74],["DEL-IC","Delanco",73],["BNY-IC","Buffalo",69],["BMA-IC","Boston",69],["HST-IC","Houston",65],["TCA-IC","Tracy",63],["TOO-IC","Tooele",59],["SDC-IC","San Diego",58],["WME-IC","West Memphis",52],["DAL-IC","Dallas",50],["AIN-IC","Plainfield",35],["CAZ-IC","Chandler",35],["NTN-IC","Nashville",32]]),
+...p("2026-04-13",[["UNI-IC","University Park",316],["CON-IC","Concord",211],["PHX-IC","Tolleson",209],["IND-IC","Indianapolis",199],["BLM-IC","Blue Mound",195],["HNS-IC","Haines City",185],["CHE-IC","Chesterfield",168],["WND-IC","Winder",162],["DEL-IC","Delanco",145],["TRE-IC","Trenton",139],["NNJ-IC","New Jersey",127],["ROC-IC","Rocklin",120],["HEA-IC","Heath",106],["ATG-IC","Atlanta",105],["OKC-IC","Oklahoma City",100],["BES-IC","Bessemer",92],["SAA-IC","San Antonio",84],["ELY-IC","Elyria",79],["AIN-IC","Plainfield",76],["HST-IC","Houston",63],["KCM-IC","Kansas City",60],["BMA-IC","Boston",60],["BNY-IC","Buffalo",52],["TOO-IC","Tooele",51],["SDC-IC","San Diego",48],["CAZ-IC","Chandler",48],["TCA-IC","Tracy",46],["DAL-IC","Dallas",43],["NTN-IC","Nashville",39],["WME-IC","West Memphis",37]]),
+...p("2026-04-06",[["CON-IC","Concord",245],["UNI-IC","University Park",232],["HNS-IC","Haines City",215],["PHX-IC","Tolleson",170],["BLM-IC","Blue Mound",162],["IND-IC","Indianapolis",156],["NNJ-IC","New Jersey",150],["CHE-IC","Chesterfield",139],["WND-IC","Winder",123],["TRE-IC","Trenton",121],["ROC-IC","Rocklin",118],["OKC-IC","Oklahoma City",114],["SAA-IC","San Antonio",102],["BES-IC","Bessemer",102],["DEL-IC","Delanco",95],["ELY-IC","Elyria",93],["ATG-IC","Atlanta",83],["HEA-IC","Heath",83],["BMA-IC","Boston",80],["KCM-IC","Kansas City",62],["TOO-IC","Tooele",56],["WME-IC","West Memphis",56],["SDC-IC","San Diego",55],["CAZ-IC","Chandler",54],["BNY-IC","Buffalo",53],["DAL-IC","Dallas",52],["HST-IC","Houston",46],["TCA-IC","Tracy",39],["AIN-IC","Plainfield",38],["POS-IC","Portland",36]]),
+...p("2026-03-30",[["CON-IC","Concord",285],["IND-IC","Indianapolis",195],["WND-IC","Winder",189],["HNS-IC","Haines City",184],["UNI-IC","University Park",180],["DEL-IC","Delanco",164],["BLM-IC","Blue Mound",151],["NNJ-IC","New Jersey",140],["PHX-IC","Tolleson",131],["ROC-IC","Rocklin",121],["TRE-IC","Trenton",119],["CHE-IC","Chesterfield",116],["HEA-IC","Heath",114],["OKC-IC","Oklahoma City",114],["ELY-IC","Elyria",98],["ATG-IC","Atlanta",95],["BES-IC","Bessemer",90],["HST-IC","Houston",88],["SAA-IC","San Antonio",79],["KCM-IC","Kansas City",74],["BMA-IC","Boston",72],["BNY-IC","Buffalo",59],["SDC-IC","San Diego",55],["DAL-IC","Dallas",46],["TOO-IC","Tooele",40],["AIN-IC","Plainfield",38],["TCA-IC","Tracy",35],["CAZ-IC","Chandler",33],["NTN-IC","Nashville",31],["WME-IC","West Memphis",49]]),
+...p("2026-03-23",[["CON-IC","Concord",213],["HNS-IC","Haines City",206],["IND-IC","Indianapolis",198],["BLM-IC","Blue Mound",195],["DEL-IC","Delanco",194],["WND-IC","Winder",163],["CHE-IC","Chesterfield",162],["PHX-IC","Tolleson",147],["SAA-IC","San Antonio",142],["ROC-IC","Rocklin",138],["UNI-IC","University Park",128],["HEA-IC","Heath",121],["NNJ-IC","New Jersey",118],["OKC-IC","Oklahoma City",116],["HST-IC","Houston",114],["ELY-IC","Elyria",102],["TRE-IC","Trenton",100],["ATG-IC","Atlanta",94],["BES-IC","Bessemer",91],["KCM-IC","Kansas City",79],["BMA-IC","Boston",76],["TOO-IC","Tooele",55],["BNY-IC","Buffalo",53],["NTN-IC","Nashville",48],["SDC-IC","San Diego",48],["TCA-IC","Tracy",48],["WME-IC","West Memphis",46],["DAL-IC","Dallas",45],["AIN-IC","Plainfield",36],["CAZ-IC","Chandler",32]]),
+...p("2026-03-16",[["CON-IC","Concord",234],["IND-IC","Indianapolis",185],["WND-IC","Winder",184],["HNS-IC","Haines City",177],["BLM-IC","Blue Mound",161],["PHX-IC","Tolleson",155],["CHE-IC","Chesterfield",142],["DEL-IC","Delanco",139],["ROC-IC","Rocklin",134],["SAA-IC","San Antonio",127],["ELY-IC","Elyria",124],["HEA-IC","Heath",123],["HST-IC","Houston",120],["NNJ-IC","New Jersey",119],["BMA-IC","Boston",115],["UNI-IC","University Park",104],["ATG-IC","Atlanta",102],["OKC-IC","Oklahoma City",100],["BES-IC","Bessemer",90],["TRE-IC","Trenton",88],["KCM-IC","Kansas City",71],["TOO-IC","Tooele",63],["BNY-IC","Buffalo",53],["CAZ-IC","Chandler",52],["DAL-IC","Dallas",47],["AIN-IC","Plainfield",45],["WME-IC","West Memphis",45],["TCA-IC","Tracy",40],["POS-IC","Portland",38],["SDC-IC","San Diego",36]]),
+...p("2026-03-09",[["CON-IC","Concord",291],["HNS-IC","Haines City",185],["CHE-IC","Chesterfield",185],["IND-IC","Indianapolis",180],["BLM-IC","Blue Mound",172],["ROC-IC","Rocklin",142],["OKC-IC","Oklahoma City",138],["UNI-IC","University Park",136],["PHX-IC","Tolleson",134],["WND-IC","Winder",127],["DEL-IC","Delanco",127],["ELY-IC","Elyria",114],["HEA-IC","Heath",111],["NNJ-IC","New Jersey",111],["TRE-IC","Trenton",88],["BMA-IC","Boston",87],["SAA-IC","San Antonio",82],["HST-IC","Houston",78],["BES-IC","Bessemer",78],["ATG-IC","Atlanta",76],["WME-IC","West Memphis",60],["KCM-IC","Kansas City",56],["CAZ-IC","Chandler",51],["TOO-IC","Tooele",50],["SDC-IC","San Diego",47],["POS-IC","Portland",46],["BNY-IC","Buffalo",45],["AIN-IC","Plainfield",40],["TCA-IC","Tracy",36],["DAL-IC","Dallas",36]]),
+...p("2026-03-02",[["IND-IC","Indianapolis",245],["BLM-IC","Blue Mound",216],["CON-IC","Concord",209],["HNS-IC","Haines City",179],["DEL-IC","Delanco",166],["CHE-IC","Chesterfield",159],["ROC-IC","Rocklin",155],["PHX-IC","Tolleson",140],["WND-IC","Winder",138],["NNJ-IC","New Jersey",123],["OKC-IC","Oklahoma City",119],["HST-IC","Houston",113],["ELY-IC","Elyria",112],["UNI-IC","University Park",101],["SAA-IC","San Antonio",94],["BMA-IC","Boston",92],["BES-IC","Bessemer",85],["KCM-IC","Kansas City",85],["HEA-IC","Heath",78],["ATG-IC","Atlanta",69],["TRE-IC","Trenton",60],["WME-IC","West Memphis",53],["BNY-IC","Buffalo",51],["CAZ-IC","Chandler",50],["TOO-IC","Tooele",50],["DAL-IC","Dallas",44],["POS-IC","Portland",44],["SDC-IC","San Diego",39],["NTN-IC","Nashville",34],["TCA-IC","Tracy",34]]),
+...p("2026-02-23",[["IND-IC","Indianapolis",191],["CON-IC","Concord",181],["HNS-IC","Haines City",173],["PHX-IC","Tolleson",169],["CHE-IC","Chesterfield",156],["BLM-IC","Blue Mound",153],["WND-IC","Winder",136],["OKC-IC","Oklahoma City",124],["BES-IC","Bessemer",122],["ROC-IC","Rocklin",119],["HEA-IC","Heath",117],["ELY-IC","Elyria",115],["SAA-IC","San Antonio",107],["UNI-IC","University Park",107],["DEL-IC","Delanco",98],["NNJ-IC","New Jersey",87],["TRE-IC","Trenton",79],["KCM-IC","Kansas City",79],["WME-IC","West Memphis",72],["HST-IC","Houston",67],["ATG-IC","Atlanta",62],["AIN-IC","Plainfield",61],["TCA-IC","Tracy",52],["TOO-IC","Tooele",51],["SDC-IC","San Diego",49],["BMA-IC","Boston",43],["DAL-IC","Dallas",39],["NTN-IC","Nashville",39],["BNY-IC","Buffalo",36],["CAZ-IC","Chandler",33]]),
+...p("2026-02-16",[["IND-IC","Indianapolis",225],["CON-IC","Concord",204],["HNS-IC","Haines City",178],["WND-IC","Winder",166],["BLM-IC","Blue Mound",163],["CHE-IC","Chesterfield",160],["PHX-IC","Tolleson",153],["ELY-IC","Elyria",151],["OKC-IC","Oklahoma City",137],["DEL-IC","Delanco",133],["ROC-IC","Rocklin",127],["SAA-IC","San Antonio",114],["HEA-IC","Heath",111],["BES-IC","Bessemer",101],["HST-IC","Houston",98],["UNI-IC","University Park",97],["BMA-IC","Boston",92],["KCM-IC","Kansas City",73],["NNJ-IC","New Jersey",64],["ATG-IC","Atlanta",61],["TRE-IC","Trenton",53],["WME-IC","West Memphis",49],["CAZ-IC","Chandler",44],["TOO-IC","Tooele",44],["TCA-IC","Tracy",43],["AIN-IC","Plainfield",42],["BNY-IC","Buffalo",41],["SDC-IC","San Diego",33],["POS-IC","Portland",28],["NTN-IC","Nashville",28]]),
+...p("2026-02-09",[["CON-IC","Concord",183],["IND-IC","Indianapolis",182],["HNS-IC","Haines City",166],["PHX-IC","Tolleson",156],["CHE-IC","Chesterfield",154],["ELY-IC","Elyria",148],["BLM-IC","Blue Mound",148],["SAA-IC","San Antonio",131],["WND-IC","Winder",129],["ROC-IC","Rocklin",119],["UNI-IC","University Park",117],["BES-IC","Bessemer",105],["DEL-IC","Delanco",105],["NNJ-IC","New Jersey",83],["OKC-IC","Oklahoma City",82],["HEA-IC","Heath",79],["BMA-IC","Boston",77],["HST-IC","Houston",71],["AIN-IC","Plainfield",70],["KCM-IC","Kansas City",67],["SDC-IC","San Diego",58],["TRE-IC","Trenton",58],["WME-IC","West Memphis",50],["TOO-IC","Tooele",50],["CAZ-IC","Chandler",48],["ATG-IC","Atlanta",45],["TCA-IC","Tracy",39],["BNY-IC","Buffalo",35],["NTN-IC","Nashville",31],["DAL-IC","Dallas",27]]),
+...p("2026-02-02",[["CON-IC","Concord",223],["BLM-IC","Blue Mound",221],["HNS-IC","Haines City",189],["CHE-IC","Chesterfield",154],["PHX-IC","Tolleson",151],["WND-IC","Winder",147],["IND-IC","Indianapolis",141],["ROC-IC","Rocklin",141],["OKC-IC","Oklahoma City",132],["UNI-IC","University Park",131],["SAA-IC","San Antonio",122],["DEL-IC","Delanco",119],["ELY-IC","Elyria",119],["HEA-IC","Heath",91],["TRE-IC","Trenton",91],["BES-IC","Bessemer",88],["NNJ-IC","New Jersey",84],["HST-IC","Houston",78],["BMA-IC","Boston",67],["KCM-IC","Kansas City",64],["TOO-IC","Tooele",53],["ATG-IC","Atlanta",48],["AIN-IC","Plainfield",47],["CAZ-IC","Chandler",47],["BNY-IC","Buffalo",46],["TCA-IC","Tracy",44],["WME-IC","West Memphis",44],["SDC-IC","San Diego",42],["POS-IC","Portland",40],["DAL-IC","Dallas",19]]),
+...p("2026-01-26",[["CON-IC","Concord",179],["HNS-IC","Haines City",175],["BLM-IC","Blue Mound",153],["SAA-IC","San Antonio",139],["ROC-IC","Rocklin",132],["IND-IC","Indianapolis",118],["WND-IC","Winder",116],["BES-IC","Bessemer",115],["HEA-IC","Heath",98],["PHX-IC","Tolleson",96],["ELY-IC","Elyria",89],["HST-IC","Houston",85],["CHE-IC","Chesterfield",84],["OKC-IC","Oklahoma City",79],["UNI-IC","University Park",73],["KCM-IC","Kansas City",64],["TOO-IC","Tooele",63],["TRE-IC","Trenton",59],["NNJ-IC","New Jersey",53],["BMA-IC","Boston",47],["DEL-IC","Delanco",45],["CAZ-IC","Chandler",44],["SDC-IC","San Diego",43],["ATG-IC","Atlanta",36],["POS-IC","Portland",35],["AIN-IC","Plainfield",33],["TCA-IC","Tracy",33],["WME-IC","West Memphis",30],["BNY-IC","Buffalo",28],["NTN-IC","Nashville",26]]),
+...p("2026-01-19",[["CON-IC","Concord",196],["HNS-IC","Haines City",190],["WND-IC","Winder",161],["ROC-IC","Rocklin",133],["BLM-IC","Blue Mound",129],["SAA-IC","San Antonio",123],["PHX-IC","Tolleson",115],["IND-IC","Indianapolis",111],["HEA-IC","Heath",105],["ELY-IC","Elyria",96],["CHE-IC","Chesterfield",96],["HST-IC","Houston",95],["NNJ-IC","New Jersey",81],["OKC-IC","Oklahoma City",75],["BMA-IC","Boston",74],["DEL-IC","Delanco",73],["BES-IC","Bessemer",71],["TRE-IC","Trenton",67],["WME-IC","West Memphis",65],["KCM-IC","Kansas City",65],["UNI-IC","University Park",53],["TOO-IC","Tooele",50],["NTN-IC","Nashville",46],["BNY-IC","Buffalo",45],["CAZ-IC","Chandler",44],["ATG-IC","Atlanta",44],["SDC-IC","San Diego",41],["POS-IC","Portland",32],["DAL-IC","Dallas",32],["AIN-IC","Plainfield",31]]),
+...p("2026-01-12",[["BLM-IC","Blue Mound",187],["CON-IC","Concord",185],["HNS-IC","Haines City",177],["PHX-IC","Tolleson",159],["IND-IC","Indianapolis",141],["ROC-IC","Rocklin",138],["SAA-IC","San Antonio",134],["WND-IC","Winder",133],["ELY-IC","Elyria",118],["OKC-IC","Oklahoma City",105],["HEA-IC","Heath",94],["HST-IC","Houston",92],["BES-IC","Bessemer",91],["CHE-IC","Chesterfield",87],["UNI-IC","University Park",85],["BMA-IC","Boston",85],["NNJ-IC","New Jersey",75],["TOO-IC","Tooele",72],["DEL-IC","Delanco",70],["KCM-IC","Kansas City",62],["TRE-IC","Trenton",61],["ATG-IC","Atlanta",57],["WME-IC","West Memphis",56],["TCA-IC","Tracy",54],["POS-IC","Portland",50],["SDC-IC","San Diego",47],["NTN-IC","Nashville",44],["AIN-IC","Plainfield",35],["DAL-IC","Dallas",33],["BNY-IC","Buffalo",33]]),
+...p("2026-01-05",[["CON-IC","Concord",189],["PHX-IC","Tolleson",174],["HNS-IC","Haines City",162],["SAA-IC","San Antonio",133],["IND-IC","Indianapolis",132],["WND-IC","Winder",131],["CHE-IC","Chesterfield",128],["ROC-IC","Rocklin",118],["BLM-IC","Blue Mound",114],["ELY-IC","Elyria",112],["UNI-IC","University Park",111],["HST-IC","Houston",110],["BES-IC","Bessemer",107],["HEA-IC","Heath",107],["DEL-IC","Delanco",106],["OKC-IC","Oklahoma City",92],["NNJ-IC","New Jersey",92],["ATG-IC","Atlanta",73],["TRE-IC","Trenton",73],["TOO-IC","Tooele",73],["WME-IC","West Memphis",63],["BMA-IC","Boston",60],["KCM-IC","Kansas City",59],["NTN-IC","Nashville",54],["POS-IC","Portland",50],["TCA-IC","Tracy",49],["BNY-IC","Buffalo",47],["CAZ-IC","Chandler",45],["DAL-IC","Dallas",25],["SDC-IC","San Diego",40]])
+];
+const SALES_DATA=[
+...p("2026-04-27",[["CHE-IC","Chesterfield",686],["ELY-IC","Elyria",582],["IND-IC","Indianapolis",562],["HNS-IC","Haines City",556],["HEA-IC","Heath",502],["UNI-IC","University Park",499],["BLM-IC","Blue Mound",491],["CON-IC","Concord",440],["OKC-IC","Oklahoma City",409],["WND-IC","Winder",409],["TRE-IC","Trenton",406],["ROC-IC","Rocklin",403],["DEL-IC","Delanco",343],["SAA-IC","San Antonio",320],["PHX-IC","Tolleson",305],["BMA-IC","Boston",304],["NNJ-IC","New Jersey",230],["BES-IC","Bessemer",229],["BNY-IC","Buffalo",225],["TOO-IC","Tooele",175],["KCM-IC","Kansas City",167],["WME-IC","West Memphis",146],["DAL-IC","Dallas",135],["AIN-IC","Plainfield",130],["ATG-IC","Atlanta",129],["LCA-IC","Riverside",108],["TCA-IC","Tracy",100],["CAZ-IC","Chandler",99],["HST-IC","Houston",78],["POS-IC","Portland",76]]),
+...p("2026-04-20",[["CHE-IC","Chesterfield",1084],["HNS-IC","Haines City",968],["IND-IC","Indianapolis",916],["ELY-IC","Elyria",889],["CON-IC","Concord",868],["WND-IC","Winder",782],["HEA-IC","Heath",772],["ROC-IC","Rocklin",755],["BLM-IC","Blue Mound",737],["UNI-IC","University Park",735],["OKC-IC","Oklahoma City",647],["TRE-IC","Trenton",619],["PHX-IC","Tolleson",597],["DEL-IC","Delanco",590],["BMA-IC","Boston",523],["SAA-IC","San Antonio",492],["BES-IC","Bessemer",416],["NNJ-IC","New Jersey",359],["BNY-IC","Buffalo",357],["TOO-IC","Tooele",289],["WME-IC","West Memphis",275],["DAL-IC","Dallas",244],["KCM-IC","Kansas City",228],["ATG-IC","Atlanta",229],["AIN-IC","Plainfield",214],["LCA-IC","Riverside",207],["CAZ-IC","Chandler",186],["POS-IC","Portland",178],["HST-IC","Houston",163],["TCA-IC","Tracy",130]]),
+...p("2026-04-13",[["CHE-IC","Chesterfield",1035],["HNS-IC","Haines City",843],["ELY-IC","Elyria",817],["IND-IC","Indianapolis",813],["CON-IC","Concord",798],["WND-IC","Winder",748],["UNI-IC","University Park",731],["HEA-IC","Heath",719],["ROC-IC","Rocklin",710],["OKC-IC","Oklahoma City",663],["BLM-IC","Blue Mound",640],["TRE-IC","Trenton",612],["PHX-IC","Tolleson",582],["DEL-IC","Delanco",530],["SAA-IC","San Antonio",527],["BMA-IC","Boston",497],["BES-IC","Bessemer",454],["NNJ-IC","New Jersey",366],["BNY-IC","Buffalo",307],["WME-IC","West Memphis",289],["TOO-IC","Tooele",274],["KCM-IC","Kansas City",256],["DAL-IC","Dallas",229],["ATG-IC","Atlanta",217],["LCA-IC","Riverside",206],["TCA-IC","Tracy",181],["CAZ-IC","Chandler",178],["POS-IC","Portland",177],["AIN-IC","Plainfield",172],["HST-IC","Houston",135]]),
+...p("2026-04-06",[["CHE-IC","Chesterfield",1146],["IND-IC","Indianapolis",855],["ELY-IC","Elyria",849],["HNS-IC","Haines City",828],["CON-IC","Concord",796],["HEA-IC","Heath",743],["ROC-IC","Rocklin",730],["WND-IC","Winder",728],["BLM-IC","Blue Mound",687],["UNI-IC","University Park",679],["OKC-IC","Oklahoma City",635],["TRE-IC","Trenton",628],["PHX-IC","Tolleson",612],["DEL-IC","Delanco",543],["SAA-IC","San Antonio",510],["BMA-IC","Boston",457],["BES-IC","Bessemer",439],["NNJ-IC","New Jersey",400],["BNY-IC","Buffalo",350],["TOO-IC","Tooele",295],["WME-IC","West Memphis",286],["KCM-IC","Kansas City",269],["DAL-IC","Dallas",241],["ATG-IC","Atlanta",230],["LCA-IC","Riverside",220],["AIN-IC","Plainfield",195],["CAZ-IC","Chandler",174],["TCA-IC","Tracy",164],["POS-IC","Portland",163],["HST-IC","Houston",132]]),
+...p("2026-03-30",[["CHE-IC","Chesterfield",1163],["IND-IC","Indianapolis",834],["HNS-IC","Haines City",828],["CON-IC","Concord",813],["HEA-IC","Heath",796],["ELY-IC","Elyria",785],["WND-IC","Winder",765],["ROC-IC","Rocklin",711],["UNI-IC","University Park",690],["BLM-IC","Blue Mound",685],["PHX-IC","Tolleson",635],["TRE-IC","Trenton",632],["OKC-IC","Oklahoma City",629],["DEL-IC","Delanco",531],["SAA-IC","San Antonio",530],["BMA-IC","Boston",506],["BES-IC","Bessemer",431],["NNJ-IC","New Jersey",352],["BNY-IC","Buffalo",325],["TOO-IC","Tooele",311],["WME-IC","West Memphis",292],["KCM-IC","Kansas City",266],["DAL-IC","Dallas",236],["ATG-IC","Atlanta",184],["CAZ-IC","Chandler",181],["LCA-IC","Riverside",217],["POS-IC","Portland",174],["AIN-IC","Plainfield",191],["TCA-IC","Tracy",155],["HST-IC","Houston",145]]),
+...p("2026-03-23",[["CHE-IC","Chesterfield",1258],["ELY-IC","Elyria",853],["HNS-IC","Haines City",843],["IND-IC","Indianapolis",839],["ROC-IC","Rocklin",822],["CON-IC","Concord",798],["HEA-IC","Heath",788],["WND-IC","Winder",769],["PHX-IC","Tolleson",736],["UNI-IC","University Park",730],["BLM-IC","Blue Mound",721],["OKC-IC","Oklahoma City",632],["TRE-IC","Trenton",615],["SAA-IC","San Antonio",556],["DEL-IC","Delanco",512],["BMA-IC","Boston",510],["BES-IC","Bessemer",470],["NNJ-IC","New Jersey",356],["BNY-IC","Buffalo",326],["WME-IC","West Memphis",312],["KCM-IC","Kansas City",300],["TOO-IC","Tooele",280],["DAL-IC","Dallas",241],["LCA-IC","Riverside",216],["POS-IC","Portland",204],["AIN-IC","Plainfield",196],["ATG-IC","Atlanta",185],["CAZ-IC","Chandler",193],["TCA-IC","Tracy",209],["HST-IC","Houston",167]]),
+...p("2026-03-16",[["CHE-IC","Chesterfield",1240],["HNS-IC","Haines City",926],["ELY-IC","Elyria",880],["IND-IC","Indianapolis",847],["CON-IC","Concord",806],["HEA-IC","Heath",788],["ROC-IC","Rocklin",745],["BLM-IC","Blue Mound",722],["OKC-IC","Oklahoma City",698],["WND-IC","Winder",698],["PHX-IC","Tolleson",694],["UNI-IC","University Park",644],["TRE-IC","Trenton",632],["BMA-IC","Boston",555],["DEL-IC","Delanco",513],["SAA-IC","San Antonio",499],["BES-IC","Bessemer",441],["NNJ-IC","New Jersey",386],["BNY-IC","Buffalo",322],["WME-IC","West Memphis",291],["TOO-IC","Tooele",278],["KCM-IC","Kansas City",237],["DAL-IC","Dallas",231],["LCA-IC","Riverside",211],["ATG-IC","Atlanta",201],["TCA-IC","Tracy",201],["POS-IC","Portland",200],["AIN-IC","Plainfield",183],["CAZ-IC","Chandler",170],["HST-IC","Houston",162]]),
+...p("2026-03-09",[["CHE-IC","Chesterfield",1343],["HNS-IC","Haines City",973],["ELY-IC","Elyria",928],["CON-IC","Concord",916],["IND-IC","Indianapolis",874],["HEA-IC","Heath",768],["WND-IC","Winder",760],["ROC-IC","Rocklin",746],["PHX-IC","Tolleson",720],["UNI-IC","University Park",702],["BLM-IC","Blue Mound",665],["OKC-IC","Oklahoma City",654],["TRE-IC","Trenton",640],["SAA-IC","San Antonio",537],["DEL-IC","Delanco",505],["BMA-IC","Boston",500],["BES-IC","Bessemer",466],["NNJ-IC","New Jersey",372],["BNY-IC","Buffalo",326],["TOO-IC","Tooele",297],["WME-IC","West Memphis",292],["KCM-IC","Kansas City",279],["DAL-IC","Dallas",235],["ATG-IC","Atlanta",234],["AIN-IC","Plainfield",213],["POS-IC","Portland",195],["TCA-IC","Tracy",186],["LCA-IC","Riverside",183],["CAZ-IC","Chandler",170],["HST-IC","Houston",149]]),
+...p("2026-03-02",[["CHE-IC","Chesterfield",1330],["ELY-IC","Elyria",1006],["IND-IC","Indianapolis",924],["HNS-IC","Haines City",906],["CON-IC","Concord",851],["WND-IC","Winder",824],["HEA-IC","Heath",781],["ROC-IC","Rocklin",744],["UNI-IC","University Park",727],["OKC-IC","Oklahoma City",723],["PHX-IC","Tolleson",713],["BLM-IC","Blue Mound",704],["TRE-IC","Trenton",679],["SAA-IC","San Antonio",582],["BMA-IC","Boston",561],["DEL-IC","Delanco",520],["BES-IC","Bessemer",477],["BNY-IC","Buffalo",359],["NNJ-IC","New Jersey",334],["WME-IC","West Memphis",318],["TOO-IC","Tooele",282],["KCM-IC","Kansas City",280],["DAL-IC","Dallas",218],["POS-IC","Portland",213],["ATG-IC","Atlanta",200],["TCA-IC","Tracy",195],["AIN-IC","Plainfield",187],["LCA-IC","Riverside",187],["CAZ-IC","Chandler",169],["HST-IC","Houston",158]]),
+...p("2026-02-23",[["CHE-IC","Chesterfield",1165],["IND-IC","Indianapolis",974],["ELY-IC","Elyria",966],["HNS-IC","Haines City",900],["CON-IC","Concord",797],["PHX-IC","Tolleson",789],["WND-IC","Winder",780],["ROC-IC","Rocklin",740],["HEA-IC","Heath",739],["OKC-IC","Oklahoma City",723],["TRE-IC","Trenton",697],["BLM-IC","Blue Mound",669],["UNI-IC","University Park",649],["SAA-IC","San Antonio",560],["BES-IC","Bessemer",483],["BMA-IC","Boston",441],["DEL-IC","Delanco",417],["TOO-IC","Tooele",282],["WME-IC","West Memphis",277],["BNY-IC","Buffalo",276],["KCM-IC","Kansas City",258],["DAL-IC","Dallas",246],["NNJ-IC","New Jersey",234],["AIN-IC","Plainfield",218],["LCA-IC","Riverside",210],["TCA-IC","Tracy",194],["CAZ-IC","Chandler",185],["ATG-IC","Atlanta",177],["POS-IC","Portland",177],["HST-IC","Houston",143]]),
+...p("2026-02-16",[["CHE-IC","Chesterfield",1225],["ELY-IC","Elyria",877],["IND-IC","Indianapolis",850],["HNS-IC","Haines City",803],["CON-IC","Concord",745],["WND-IC","Winder",689],["ROC-IC","Rocklin",682],["PHX-IC","Tolleson",633],["OKC-IC","Oklahoma City",615],["HEA-IC","Heath",611],["BLM-IC","Blue Mound",586],["UNI-IC","University Park",553],["TRE-IC","Trenton",550],["SAA-IC","San Antonio",487],["DEL-IC","Delanco",468],["BMA-IC","Boston",435],["BES-IC","Bessemer",407],["BNY-IC","Buffalo",268],["NNJ-IC","New Jersey",253],["WME-IC","West Memphis",242],["TOO-IC","Tooele",239],["KCM-IC","Kansas City",233],["DAL-IC","Dallas",219],["TCA-IC","Tracy",175],["ATG-IC","Atlanta",168],["POS-IC","Portland",162],["AIN-IC","Plainfield",153],["LCA-IC","Riverside",152],["CAZ-IC","Chandler",143],["HST-IC","Houston",107]]),
+...p("2026-02-09",[["CHE-IC","Chesterfield",1161],["ELY-IC","Elyria",801],["HNS-IC","Haines City",794],["IND-IC","Indianapolis",757],["CON-IC","Concord",746],["ROC-IC","Rocklin",690],["PHX-IC","Tolleson",657],["HEA-IC","Heath",649],["WND-IC","Winder",638],["OKC-IC","Oklahoma City",625],["BLM-IC","Blue Mound",558],["UNI-IC","University Park",549],["TRE-IC","Trenton",517],["SAA-IC","San Antonio",471],["BMA-IC","Boston",432],["BES-IC","Bessemer",429],["DEL-IC","Delanco",407],["BNY-IC","Buffalo",255],["NNJ-IC","New Jersey",253],["TOO-IC","Tooele",241],["WME-IC","West Memphis",222],["DAL-IC","Dallas",219],["KCM-IC","Kansas City",209],["AIN-IC","Plainfield",193],["TCA-IC","Tracy",184],["LCA-IC","Riverside",159],["CAZ-IC","Chandler",158],["POS-IC","Portland",151],["ATG-IC","Atlanta",137],["HST-IC","Houston",120]]),
+...p("2026-02-02",[["CHE-IC","Chesterfield",1073],["HNS-IC","Haines City",797],["IND-IC","Indianapolis",787],["CON-IC","Concord",767],["ELY-IC","Elyria",766],["WND-IC","Winder",697],["HEA-IC","Heath",653],["ROC-IC","Rocklin",653],["OKC-IC","Oklahoma City",650],["UNI-IC","University Park",649],["PHX-IC","Tolleson",608],["BLM-IC","Blue Mound",569],["TRE-IC","Trenton",544],["SAA-IC","San Antonio",477],["BMA-IC","Boston",446],["BES-IC","Bessemer",432],["DEL-IC","Delanco",407],["NNJ-IC","New Jersey",282],["KCM-IC","Kansas City",271],["BNY-IC","Buffalo",271],["WME-IC","West Memphis",246],["TOO-IC","Tooele",233],["DAL-IC","Dallas",225],["TCA-IC","Tracy",205],["AIN-IC","Plainfield",186],["LCA-IC","Riverside",170],["CAZ-IC","Chandler",166],["POS-IC","Portland",135],["ATG-IC","Atlanta",118],["HST-IC","Houston",101]]),
+...p("2026-01-26",[["CHE-IC","Chesterfield",655],["HNS-IC","Haines City",694],["ROC-IC","Rocklin",636],["PHX-IC","Tolleson",548],["UNI-IC","University Park",536],["IND-IC","Indianapolis",536],["ELY-IC","Elyria",516],["CON-IC","Concord",510],["WND-IC","Winder",486],["OKC-IC","Oklahoma City",485],["HEA-IC","Heath",448],["BLM-IC","Blue Mound",414],["SAA-IC","San Antonio",368],["TRE-IC","Trenton",356],["BES-IC","Bessemer",310],["DEL-IC","Delanco",272],["TOO-IC","Tooele",269],["BMA-IC","Boston",228],["KCM-IC","Kansas City",195],["BNY-IC","Buffalo",178],["LCA-IC","Riverside",169],["NNJ-IC","New Jersey",167],["CAZ-IC","Chandler",153],["AIN-IC","Plainfield",144],["POS-IC","Portland",130],["DAL-IC","Dallas",127],["ATG-IC","Atlanta",119],["WME-IC","West Memphis",117],["TCA-IC","Tracy",190],["HST-IC","Houston",86]]),
+...p("2026-01-19",[["CHE-IC","Chesterfield",939],["HNS-IC","Haines City",689],["ROC-IC","Rocklin",658],["IND-IC","Indianapolis",642],["CON-IC","Concord",607],["ELY-IC","Elyria",595],["WND-IC","Winder",533],["BLM-IC","Blue Mound",503],["OKC-IC","Oklahoma City",498],["PHX-IC","Tolleson",493],["HEA-IC","Heath",490],["UNI-IC","University Park",415],["TRE-IC","Trenton",406],["SAA-IC","San Antonio",366],["DEL-IC","Delanco",349],["BES-IC","Bessemer",346],["BMA-IC","Boston",342],["TOO-IC","Tooele",236],["NNJ-IC","New Jersey",218],["LCA-IC","Riverside",192],["BNY-IC","Buffalo",190],["KCM-IC","Kansas City",173],["DAL-IC","Dallas",174],["POS-IC","Portland",158],["WME-IC","West Memphis",156],["CAZ-IC","Chandler",152],["AIN-IC","Plainfield",124],["ATG-IC","Atlanta",101],["HST-IC","Houston",103],["TCA-IC","Tracy",174]]),
+...p("2026-01-12",[["CHE-IC","Chesterfield",1112],["CON-IC","Concord",863],["HNS-IC","Haines City",781],["IND-IC","Indianapolis",761],["ELY-IC","Elyria",715],["ROC-IC","Rocklin",702],["WND-IC","Winder",666],["OKC-IC","Oklahoma City",624],["HEA-IC","Heath",612],["UNI-IC","University Park",593],["PHX-IC","Tolleson",550],["BLM-IC","Blue Mound",528],["TRE-IC","Trenton",505],["SAA-IC","San Antonio",462],["BMA-IC","Boston",418],["BES-IC","Bessemer",376],["DEL-IC","Delanco",365],["TOO-IC","Tooele",284],["NNJ-IC","New Jersey",251],["KCM-IC","Kansas City",242],["BNY-IC","Buffalo",201],["POS-IC","Portland",198],["WME-IC","West Memphis",196],["CAZ-IC","Chandler",181],["LCA-IC","Riverside",180],["DAL-IC","Dallas",172],["TCA-IC","Tracy",172],["AIN-IC","Plainfield",163],["HST-IC","Houston",126],["ATG-IC","Atlanta",102]]),
+...p("2026-01-05",[["CHE-IC","Chesterfield",1205],["HNS-IC","Haines City",850],["CON-IC","Concord",773],["IND-IC","Indianapolis",772],["WND-IC","Winder",747],["ELY-IC","Elyria",740],["ROC-IC","Rocklin",675],["HEA-IC","Heath",640],["UNI-IC","University Park",631],["OKC-IC","Oklahoma City",587],["BLM-IC","Blue Mound",564],["PHX-IC","Tolleson",553],["TRE-IC","Trenton",522],["SAA-IC","San Antonio",487],["BES-IC","Bessemer",466],["DEL-IC","Delanco",411],["BMA-IC","Boston",406],["TOO-IC","Tooele",287],["NNJ-IC","New Jersey",261],["BNY-IC","Buffalo",236],["KCM-IC","Kansas City",235],["LCA-IC","Riverside",211],["AIN-IC","Plainfield",186],["POS-IC","Portland",169],["TCA-IC","Tracy",166],["WME-IC","West Memphis",162],["DAL-IC","Dallas",160],["CAZ-IC","Chandler",159],["NTN-IC","Nashville",141],["ATG-IC","Atlanta",124]])
+];
+
+function fmt(n){return n.toLocaleString()}
+function getDataset(metric){return metric==='moved'?MOVES_DATA:metric==='reconditioned'?RECON_DATA:SALES_DATA}
+function getWeekData(metric,week){
+  const d=getDataset(metric).filter(r=>r.week===week);
+  d.sort((a,b)=>b.value-a.value);
+  return d.map((r,i)=>({...r,rank:i+1}));
+}
+function getPrevWeek(week){const i=WEEKS.indexOf(week);return i>0?WEEKS[i-1]:null}
+function getRankChange(metric,code,week){
+  const prev=getPrevWeek(week);
+  if(!prev)return 0;
+  const cur=getWeekData(metric,week),prv=getWeekData(metric,prev);
+  const cr=cur.find(r=>r.code===code),pr=prv.find(r=>r.code===code);
+  if(!cr||!pr)return 0;
+  return pr.rank-cr.rank;
+}
+function getSparkline(metric,code){return WEEKS.map(w=>{const d=getDataset(metric).find(r=>r.week===w&&r.code===code);return d?d.value:0})}
+function matchFilter(code,filter){
+  if(filter==='all')return true;
+  if(filter==='ic')return code.endsWith('-IC')&&!code.startsWith('A');
+  if(filter==='recon')return code.startsWith('A')||code.includes('NNJ');
+  if(filter==='hub')return code.endsWith('-HB')||code.endsWith('-LH');
+  if(filter==='overflow')return code.endsWith('-OL');
+  return true;
+}
+function drawSparkline(canvas,data){
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  const vals=data.filter(v=>v>0);if(vals.length<2)return;
+  const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
+  ctx.strokeStyle='#00d4ff';ctx.lineWidth=1.5;ctx.beginPath();
+  let pts=0;
+  data.forEach((v,i)=>{if(v>0){const x=i/(data.length-1)*w,y=h-((v-mn)/rng)*h*0.8-h*0.1;pts===0?ctx.moveTo(x,y):ctx.lineTo(x,y);pts++}});
+  ctx.stroke();
+}
+const map=L.map('map',{zoomControl:true}).setView([38.5,-96],4);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'OpenStreetMap CARTO',maxZoom:19}).addTo(map);
+let markers=[];
+function renderMap(metric,week){
+  markers.forEach(m=>map.removeLayer(m));markers=[];
+  const data=getWeekData(metric,week);
+  const mx=data.length?data[0].value:1;
+  data.forEach(r=>{
+    const g=GPS[r.code];if(!g)return;
+    const rad=Math.max(5,Math.min(22,Math.sqrt(r.value/mx)*22));
+    const color=r.rank<=3?'#ffd700':r.rank<=10?'#00d4ff':'#7b61ff';
+    const m=L.circleMarker(g,{radius:rad,fillColor:color,color:color,weight:2,opacity:0.9,fillOpacity:0.45}).addTo(map);
+    m.bindPopup(`<div style="font-family:system-ui;min-width:160px"><b style="font-size:14px">${r.name}</b><br><span style="color:#888">${r.code} | Rank #${r.rank}</span><br><b style="color:#00d4ff;font-size:16px">${fmt(r.value)}</b></div>`);
+    m._code=r.code;markers.push(m);
+  });
+}
+function renderTable(metric,week,sort,filter){
+  let data=getWeekData(metric,week).filter(r=>matchFilter(r.code,filter));
+  if(sort==='rank-asc')data.reverse();
+  if(sort==='alpha')data.sort((a,b)=>a.name.localeCompare(b.name));
+  const el=document.getElementById('ranking-rows');
+  el.innerHTML=data.map(r=>{
+    const ch=getRankChange(metric,r.code,week);
+    const badge=r.rank===1?'gold':r.rank===2?'silver':r.rank===3?'bronze':'default';
+    const arrow=ch>0?`<span class="trend-arrow up">&#9650;</span><span style="color:#00e676">+${ch}</span>`:ch<0?`<span class="trend-arrow down">&#9660;</span><span style="color:#ff4081">${ch}</span>`:`<span class="trend-arrow neutral">&#9644;</span>`;
+    return `<div class="ranking-row" onclick="flyTo('${r.code}')">
+      <div><div class="rank-badge ${badge}">${r.rank}</div></div>
+      <div class="location-info"><div class="location-name">${r.name}</div></div>
+      <div class="location-code">${r.code}</div>
+      <div class="metric-value">${fmt(r.value)}</div>
+      <div class="trend-indicator">${arrow}</div>
+      <div><canvas class="sparkline" width="60" height="24" data-code="${r.code}"></canvas></div>
+    </div>`}).join('');
+  el.querySelectorAll('canvas.sparkline').forEach(c=>{drawSparkline(c,getSparkline(metric,c.dataset.code))});
+}
+function updateKPIs(metric,week){
+  const data=getWeekData(metric,week);
+  const total=data.reduce((s,r)=>s+r.value,0);
+  const prev=getPrevWeek(week);
+  let prevTotal=0;
+  if(prev){const pd=getWeekData(metric,prev);prevTotal=pd.reduce((s,r)=>s+r.value,0)}
+  document.getElementById('kpi-total').textContent=fmt(total);
+  document.getElementById('kpi-top').textContent=data[0]?data[0].name:'—';
+  document.getElementById('kpi-top-value').textContent=data[0]?fmt(data[0].value)+' units':'';
+  document.getElementById('kpi-avg').textContent=data.length?fmt(Math.round(total/data.length)):'0';
+  document.getElementById('kpi-locations').textContent=data.length;
+  if(prev&&prevTotal){
+    const pct=((total-prevTotal)/prevTotal*100).toFixed(1);
+    const cls=pct>=0?'positive':'negative';
+    document.getElementById('kpi-total-change').className='kpi-change '+cls;
+    document.getElementById('kpi-total-change').textContent=(pct>=0?'+':'')+pct+'% vs prev week';
+  }
+}
+function flyTo(code){const g=GPS[code];if(!g)return;map.flyTo(g,10,{duration:1});markers.forEach(m=>{if(m._code===code)m.openPopup()})}
+function applyFilters(){
+  const week=document.getElementById('week-select').value;
+  const metric=document.getElementById('metric-select').value;
+  const filter=document.getElementById('location-type-select').value;
+  const sort=document.getElementById('sort-select').value;
+  renderMap(metric,week);renderTable(metric,week,sort,filter);updateKPIs(metric,week);
+}
+document.getElementById('week-select').addEventListener('change',applyFilters);
+document.getElementById('metric-select').addEventListener('change',applyFilters);
+document.getElementById('location-type-select').addEventListener('change',applyFilters);
+document.getElementById('sort-select').addEventListener('change',applyFilters);
+applyFilters();setTimeout(()=>map.invalidateSize(),100);
+</script>
+</body>
+</html>
