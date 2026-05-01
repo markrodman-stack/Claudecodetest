@@ -727,7 +727,9 @@ function getRankChange(metric,code,week){
   return pr.rank-cr.rank;
 }
 function getSparkline(metric,code){return WEEKS.map(w=>{const d=getDataset(metric).find(r=>r.week===w&&r.code===code);return d?d.value:0})}
+function isMP(code){return code.endsWith('-MP')}
 function matchFilter(code,filter){
+  if(isMP(code))return false;
   if(filter==='all')return true;
   if(filter==='ic')return code.endsWith('-IC')&&!code.startsWith('A');
   if(filter==='recon')return code.startsWith('A')||code.includes('NNJ');
@@ -753,6 +755,7 @@ function renderMap(metric,week){
   const data=getWeekData(metric,week);
   const mx=data.length?data[0].value:1;
   data.forEach(r=>{
+    if(isMP(r.code))return;
     const g=GPS[r.code];if(!g)return;
     const rad=Math.max(5,Math.min(22,Math.sqrt(r.value/mx)*22));
     const color=r.rank<=3?'#ffd700':r.rank<=10?'#00d4ff':'#7b61ff';
@@ -935,7 +938,7 @@ function toggleVeh(v){expandedVeh=expandedVeh===v?null:v;renderVehicleRanking()}
 function getAllLocations(){
   const locs={};
   [MOVES_DATA,RECON_DATA,SALES_DATA].forEach(ds=>ds.forEach(r=>{
-    if(!locs[r.code])locs[r.code]={code:r.code,name:r.name};
+    if(!locs[r.code]&&!isMP(r.code))locs[r.code]={code:r.code,name:r.name};
   }));
   return Object.values(locs).sort((a,b)=>a.name.localeCompare(b.name));
 }
