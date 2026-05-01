@@ -450,6 +450,68 @@
                 <option value="alpha">Alphabetical</option>
             </select>
         </div>
+
+        <div style="width:1px;background:#1e293b;align-self:stretch;margin:0 0.5rem"></div>
+
+        <div class="filter-group" style="min-width:220px">
+            <label for="vehicle-select">Popular Vehicles Sold</label>
+            <select id="vehicle-select">
+                <option value="">All Vehicles</option>
+                <option value="Chevrolet Trax">Chevrolet Trax — 2,975</option>
+                <option value="Chevrolet Trailblazer">Chevrolet Trailblazer — 2,295</option>
+                <option value="Chevrolet Equinox">Chevrolet Equinox — 2,052</option>
+                <option value="Chevrolet Malibu">Chevrolet Malibu — 1,660</option>
+                <option value="Nissan Altima">Nissan Altima — 1,659</option>
+                <option value="Toyota Camry">Toyota Camry — 1,518</option>
+                <option value="Buick Envista">Buick Envista — 1,517</option>
+                <option value="Kia K4">Kia K4 — 1,413</option>
+                <option value="Nissan Rogue">Nissan Rogue — 1,312</option>
+                <option value="Buick Encore GX">Buick Encore GX — 1,132</option>
+                <option value="Kia Soul">Kia Soul — 967</option>
+                <option value="Tesla Model Y">Tesla Model Y — 939</option>
+                <option value="Nissan Sentra">Nissan Sentra — 852</option>
+                <option value="Tesla Model 3">Tesla Model 3 — 826</option>
+                <option value="Nissan Versa">Nissan Versa — 725</option>
+                <option value="Jeep Compass">Jeep Compass — 717</option>
+                <option value="Hyundai Kona">Hyundai Kona — 710</option>
+                <option value="Jeep Cherokee">Jeep Cherokee — 670</option>
+                <option value="Toyota RAV4">Toyota RAV4 — 598</option>
+                <option value="Hyundai Tucson">Hyundai Tucson — 564</option>
+                <option value="Jeep Wrangler">Jeep Wrangler — 566</option>
+                <option value="Chevrolet Silverado">Chevrolet Silverado — 539</option>
+                <option value="Ford Edge">Ford Edge — 525</option>
+                <option value="Hyundai Elantra">Hyundai Elantra — 522</option>
+                <option value="Volkswagen Jetta">Volkswagen Jetta — 490</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="vehicle-spotlight" style="display:none;background:#111827;padding:0.75rem 2rem;border-bottom:1px solid #1e293b;display:none">
+        <div style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:0.75rem">
+                <span style="font-size:1.5rem">&#128663;</span>
+                <div>
+                    <div id="spotlight-name" style="font-size:1rem;font-weight:700;color:#00d4ff"></div>
+                    <div id="spotlight-body" style="font-size:0.75rem;color:#64748b"></div>
+                </div>
+            </div>
+            <div style="text-align:center">
+                <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Total Sold (YTD)</div>
+                <div id="spotlight-total" style="font-size:1.25rem;font-weight:700;color:#fff"></div>
+            </div>
+            <div style="text-align:center">
+                <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Top Year</div>
+                <div id="spotlight-year" style="font-size:1.25rem;font-weight:700;color:#fff"></div>
+            </div>
+            <div style="text-align:center">
+                <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Body Style</div>
+                <div id="spotlight-style" style="font-size:1.25rem;font-weight:700;color:#fff"></div>
+            </div>
+            <div style="text-align:center">
+                <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Rank</div>
+                <div id="spotlight-rank" style="font-size:1.25rem;font-weight:700;color:#ffd700"></div>
+            </div>
+        </div>
     </div>
 
     <!-- KPI Summary Strip -->
@@ -685,6 +747,48 @@ document.getElementById('week-select').addEventListener('change',applyFilters);
 document.getElementById('metric-select').addEventListener('change',applyFilters);
 document.getElementById('location-type-select').addEventListener('change',applyFilters);
 document.getElementById('sort-select').addEventListener('change',applyFilters);
+const VEHICLES=[
+{name:"Chevrolet Trax",total:2975,year:2025,body:"SUV",rank:1},
+{name:"Chevrolet Trailblazer",total:2295,year:2025,body:"SUV",rank:2},
+{name:"Chevrolet Equinox",total:2052,year:2025,body:"SUV",rank:3},
+{name:"Chevrolet Malibu",total:1660,year:2024,body:"Sedan",rank:4},
+{name:"Nissan Altima",total:1659,year:2025,body:"Sedan",rank:5},
+{name:"Toyota Camry",total:1518,year:2025,body:"Sedan",rank:6},
+{name:"Buick Envista",total:1517,year:2025,body:"SUV",rank:7},
+{name:"Kia K4",total:1413,year:2025,body:"Sedan",rank:8},
+{name:"Nissan Rogue",total:1312,year:2023,body:"SUV",rank:9},
+{name:"Buick Encore GX",total:1132,year:2025,body:"SUV",rank:10},
+{name:"Kia Soul",total:967,year:2025,body:"Wagon",rank:11},
+{name:"Tesla Model Y",total:939,year:2023,body:"SUV",rank:12},
+{name:"Nissan Sentra",total:852,year:2025,body:"Sedan",rank:13},
+{name:"Tesla Model 3",total:826,year:2023,body:"Sedan",rank:14},
+{name:"Nissan Versa",total:725,year:2025,body:"Sedan",rank:15},
+{name:"Jeep Compass",total:717,year:2025,body:"SUV",rank:16},
+{name:"Hyundai Kona",total:710,year:2025,body:"SUV",rank:17},
+{name:"Jeep Cherokee",total:670,year:2019,body:"SUV",rank:18},
+{name:"Toyota RAV4",total:598,year:2025,body:"SUV",rank:19},
+{name:"Hyundai Tucson",total:564,year:2025,body:"SUV",rank:20},
+{name:"Jeep Wrangler",total:566,year:2018,body:"SUV",rank:21},
+{name:"Chevrolet Silverado",total:539,year:2023,body:"Pickup",rank:22},
+{name:"Ford Edge",total:525,year:2024,body:"SUV",rank:23},
+{name:"Hyundai Elantra",total:522,year:2025,body:"Sedan",rank:24},
+{name:"Volkswagen Jetta",total:490,year:2025,body:"Sedan",rank:25}
+];
+function updateSpotlight(){
+  const sel=document.getElementById('vehicle-select').value;
+  const panel=document.getElementById('vehicle-spotlight');
+  if(!sel){panel.style.display='none';return}
+  const v=VEHICLES.find(x=>x.name===sel);
+  if(!v){panel.style.display='none';return}
+  panel.style.display='block';
+  document.getElementById('spotlight-name').textContent=v.name;
+  document.getElementById('spotlight-body').textContent=v.year+' '+v.body;
+  document.getElementById('spotlight-total').textContent=fmt(v.total);
+  document.getElementById('spotlight-year').textContent=v.year;
+  document.getElementById('spotlight-style').textContent=v.body;
+  document.getElementById('spotlight-rank').textContent='#'+v.rank;
+}
+document.getElementById('vehicle-select').addEventListener('change',updateSpotlight);
 applyFilters();setTimeout(()=>map.invalidateSize(),100);
 </script>
 </body>
