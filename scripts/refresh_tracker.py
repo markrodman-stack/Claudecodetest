@@ -49,7 +49,7 @@ def query_moves(cur, start_date):
           AND LOCATION_CODE IS NOT NULL
           AND LOCATION_CODE NOT IN ('OffSite','InTransit','Unknown')
         GROUP BY 1, 2, 3
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY week_start ORDER BY units_moved DESC) <= 100
+        -- No limit: include all locations
         ORDER BY week_start, units_moved DESC
     """)
     return cur.fetchall()
@@ -64,7 +64,7 @@ def query_recon(cur, start_date):
         WHERE REPAIR_WEEK_START >= '{start_date}'
           AND END_DATETIME_UTC IS NOT NULL
         GROUP BY 1, 2, 3
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY week_start ORDER BY units_reconditioned DESC) <= 100
+        -- No limit: include all locations
         ORDER BY week_start, units_reconditioned DESC
     """)
     return cur.fetchall()
@@ -82,7 +82,7 @@ def query_sales(cur, start_date):
           AND fs.IS_PURCHASE_COMPLETED = TRUE
           AND dv.VEHICLE_LOCATION_LOCATION_CODE IS NOT NULL
         GROUP BY 1, 2, 3
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY week_start ORDER BY units_sold DESC) <= 100
+        -- No limit: include all locations
         ORDER BY week_start, units_sold DESC
     """)
     return cur.fetchall()
