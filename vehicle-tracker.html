@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vehicle Movement Tracker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0a0e1a; color: #e0e6f0; }
+
+  .header {
+    background: linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%);
+    border-bottom: 2px solid #00d4ff33;
+    padding: 16px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 {
+    font-size: 22px; font-weight: 600; letter-spacing: 0.5px;
+    background: linear-gradient(90deg, #00d4ff, #7b61ff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .subtitle { font-size: 12px; color: #6b7a8d; margin-top: 2px; }
+  .header .live-badge {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: #00e676;
+  }
+  .header .live-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #00e676;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,230,118,0.5); }
+    50% { box-shadow: 0 0 0 6px rgba(0,230,118,0); }
+  }
+
+  .kpi-strip {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;
+    padding: 20px 32px;
+  }
+  .kpi-card {
+    background: linear-gradient(145deg, #111827, #0f1729);
+    border: 1px solid #1e293b; border-radius: 12px;
+    padding: 18px 20px; position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: 12px 12px 0 0;
+  }
+  .kpi-card:nth-child(1)::before { background: linear-gradient(90deg, #00d4ff, #0099cc); }
+  .kpi-card:nth-child(2)::before { background: linear-gradient(90deg, #7b61ff, #5a3fd4); }
+  .kpi-card:nth-child(3)::before { background: linear-gradient(90deg, #00e676, #00b35a); }
+  .kpi-card:nth-child(4)::before { background: linear-gradient(90deg, #ff9100, #cc7400); }
+  .kpi-card:nth-child(5)::before { background: linear-gradient(90deg, #ff4081, #cc3367); }
+  .kpi-label { font-size: 11px; color: #6b7a8d; text-transform: uppercase; letter-spacing: 1px; }
+  .kpi-value { font-size: 32px; font-weight: 700; margin-top: 4px; color: #fff; }
+  .kpi-detail { font-size: 11px; color: #4a5568; margin-top: 4px; }
+
+  .main-grid {
+    display: grid; grid-template-columns: 1fr 400px; gap: 16px;
+    padding: 0 32px 24px;
+    height: calc(100vh - 250px);
+    min-height: 500px;
+  }
+
+  .map-panel {
+    background: #111827; border: 1px solid #1e293b; border-radius: 12px;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .panel-header {
+    padding: 14px 18px; border-bottom: 1px solid #1e293b;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .panel-title { font-size: 14px; font-weight: 600; }
+  .panel-badge {
+    font-size: 11px; background: #1e293b; padding: 3px 10px; border-radius: 20px; color: #6b7a8d;
+  }
+  #map { flex: 1; min-height: 0; }
+
+  .sidebar {
+    display: flex; flex-direction: column; gap: 16px;
+    overflow: hidden;
+  }
+
+  .sidebar-panel {
+    background: #111827; border: 1px solid #1e293b; border-radius: 12px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .sidebar-panel.locations { flex: 1; min-height: 0; }
+  .sidebar-panel.sources { flex-shrink: 0; }
+  .sidebar-panel.movements { flex: 1; min-height: 0; }
+
+  .location-list, .movement-list {
+    overflow-y: auto; flex: 1; min-height: 0;
+  }
+  .location-list::-webkit-scrollbar, .movement-list::-webkit-scrollbar { width: 4px; }
+  .location-list::-webkit-scrollbar-track, .movement-list::-webkit-scrollbar-track { background: transparent; }
+  .location-list::-webkit-scrollbar-thumb, .movement-list::-webkit-scrollbar-thumb { background: #2a3548; border-radius: 4px; }
+
+  .loc-item {
+    display: grid; grid-template-columns: 1fr auto; gap: 8px;
+    padding: 10px 18px; border-bottom: 1px solid #1e293b11;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .loc-item:hover { background: #1a2332; }
+  .loc-name { font-size: 13px; font-weight: 500; }
+  .loc-code { font-size: 11px; color: #4a5568; }
+  .loc-count {
+    font-size: 14px; font-weight: 700; color: #00d4ff;
+    display: flex; align-items: center;
+  }
+
+  .source-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
+    padding: 12px 18px;
+  }
+  .source-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 10px; background: #0a0e1a; border-radius: 6px;
+    font-size: 11px;
+  }
+  .source-name { color: #8892a4; }
+  .source-val { color: #e0e6f0; font-weight: 600; }
+
+  .move-item {
+    padding: 10px 18px; border-bottom: 1px solid #1e293b11;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .move-vin { font-size: 12px; font-weight: 600; color: #00d4ff; font-family: 'Courier New', monospace; }
+  .move-detail { font-size: 11px; color: #6b7a8d; }
+  .move-location { font-size: 12px; color: #e0e6f0; }
+  .move-arrow { color: #7b61ff; margin: 0 4px; }
+
+  .search-box {
+    padding: 8px 18px; border-bottom: 1px solid #1e293b; flex-shrink: 0;
+  }
+  .search-box input {
+    width: 100%; background: #0a0e1a; border: 1px solid #1e293b; border-radius: 6px;
+    padding: 8px 12px; color: #e0e6f0; font-size: 12px; outline: none;
+  }
+  .search-box input:focus { border-color: #00d4ff44; }
+  .search-box input::placeholder { color: #3a4558; }
+
+  .filter-bar {
+    padding: 10px 18px; border-bottom: 1px solid #1e293b;
+    display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
+  }
+  .filter-btn {
+    font-size: 11px; padding: 4px 12px; border-radius: 20px;
+    border: 1px solid #1e293b; background: transparent; color: #6b7a8d;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .filter-btn:hover { border-color: #00d4ff44; color: #00d4ff; }
+  .filter-btn.active { background: #00d4ff22; border-color: #00d4ff44; color: #00d4ff; }
+
+  .tab-bar {
+    display: flex; border-bottom: 1px solid #1e293b; flex-shrink: 0;
+  }
+  .tab-btn {
+    flex: 1; padding: 10px; text-align: center; font-size: 12px; font-weight: 500;
+    color: #6b7a8d; cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none;
+  }
+  .tab-btn:hover { color: #e0e6f0; }
+  .tab-btn.active { color: #00d4ff; border-bottom-color: #00d4ff; }
+
+  .tab-content { display: none; flex: 1; min-height: 0; overflow: hidden; flex-direction: column; }
+  .tab-content.active { display: flex; }
+
+  @media (max-width: 1024px) {
+    .kpi-strip { grid-template-columns: repeat(3, 1fr); }
+    .main-grid { grid-template-columns: 1fr; height: auto; }
+    .map-panel { height: 400px; }
+  }
+  @media (max-width: 640px) {
+    .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+    .header { padding: 12px 16px; }
+    .kpi-strip, .main-grid { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Vehicle Movement Tracker</h1>
+    <div class="subtitle">INVENTORY.VEHICLE_QUALITY.VW_VEHICLE_LOCATION_HISTORY</div>
+  </div>
+  <div class="live-badge">
+    <div class="live-dot"></div>
+    <span id="lastUpdate">Last updated: loading...</span>
+  </div>
+</div>
+
+<div class="kpi-strip">
+  <div class="kpi-card">
+    <div class="kpi-label">Vehicles Tracked</div>
+    <div class="kpi-value" id="kpiVehicles">127,550</div>
+    <div class="kpi-detail">Unique VINs (24h)</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Active Locations</div>
+    <div class="kpi-value" id="kpiLocations">245</div>
+    <div class="kpi-detail">ICs, VMs, Hubs &amp; Lots</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Location Changes</div>
+    <div class="kpi-value" id="kpiChanges">19,909</div>
+    <div class="kpi-detail">Moves detected (24h)</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Total Reads</div>
+    <div class="kpi-value" id="kpiReads">416,688</div>
+    <div class="kpi-detail">Tracking events (24h)</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Data Sources</div>
+    <div class="kpi-value" id="kpiSources">18</div>
+    <div class="kpi-detail">Rover, RFID, CarScan...</div>
+  </div>
+</div>
+
+<div class="main-grid">
+  <div class="map-panel">
+    <div class="panel-header">
+      <span class="panel-title">Facility Map</span>
+      <span class="panel-badge" id="mapLocCount">30 locations plotted</span>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-panel" style="flex: 2; min-height: 0; display: flex; flex-direction: column;">
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="locations">Locations</button>
+        <button class="tab-btn" data-tab="movements">Recent Moves</button>
+      </div>
+
+      <div class="tab-content active" id="tab-locations">
+        <div class="search-box">
+          <input type="text" id="locationSearch" placeholder="Search locations..." />
+        </div>
+        <div class="filter-bar">
+          <button class="filter-btn active" data-filter="all">All</button>
+          <button class="filter-btn" data-filter="IC">ICs</button>
+          <button class="filter-btn" data-filter="VM">VMs</button>
+          <button class="filter-btn" data-filter="HB">Hubs</button>
+          <button class="filter-btn" data-filter="OL">Overflow</button>
+        </div>
+        <div class="location-list" id="locationList"></div>
+      </div>
+
+      <div class="tab-content" id="tab-movements">
+        <div class="search-box">
+          <input type="text" id="moveSearch" placeholder="Search by VIN or location..." />
+        </div>
+        <div class="movement-list" id="movementList"></div>
+      </div>
+    </div>
+
+    <div class="sidebar-panel sources" style="flex-shrink: 0;">
+      <div class="panel-header">
+        <span class="panel-title">Reporting Sources</span>
+        <span class="panel-badge">24h breakdown</span>
+      </div>
+      <div class="source-grid" id="sourceGrid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const LOCATIONS = [
+  { name: "Elyria IC", code: "ELY-IC", count: 6569, lat: 41.4129, lng: -82.1597 },
+  { name: "Haines City IC", code: "HNS-IC", count: 6560, lat: 28.0795, lng: -81.6002 },
+  { name: "Chesterfield IC", code: "CHE-IC", count: 6400, lat: 37.3221, lng: -77.3973 },
+  { name: "University Park IC", code: "UNI-IC", count: 6034, lat: 41.4603, lng: -87.7287 },
+  { name: "Indianapolis IC", code: "IND-IC", count: 5815, lat: 39.8237, lng: -85.9244 },
+  { name: "AD New Jersey RC", code: "NNJ-IC", count: 5438, lat: 40.5492, lng: -74.5795 },
+  { name: "Rocklin IC", code: "ROC-IC", count: 5242, lat: 38.8258, lng: -121.3149 },
+  { name: "Concord IC", code: "CON-IC", count: 5184, lat: 35.3709, lng: -80.6331 },
+  { name: "Blue Mound IC", code: "BLM-IC", count: 4940, lat: 32.8501, lng: -97.3390 },
+  { name: "Heath IC", code: "HEA-IC", count: 4798, lat: 40.0001, lng: -82.4720 },
+  { name: "OffSite", code: "OffSite", count: 4736, lat: 37.1524, lng: -89.2784 },
+  { name: "Boston MA IC", code: "BMA-IC", count: 4344, lat: 42.2619, lng: -71.4119 },
+  { name: "Oklahoma City OK IC", code: "OKC-IC", count: 4206, lat: 35.4143, lng: -97.6306 },
+  { name: "Tolleson (Phoenix)", code: "PHX-IC", count: 3925, lat: 33.4413, lng: -112.2633 },
+  { name: "Trenton IC", code: "TRE-IC", count: 3737, lat: 39.4639, lng: -84.4684 },
+  { name: "Delanco IC", code: "DEL-IC", count: 3703, lat: 40.0431, lng: -74.9310 },
+  { name: "Winder Overflow", code: "WND-OL", count: 2999, lat: 33.9903, lng: -83.7507 },
+  { name: "San Antonio IC", code: "SAA-IC", count: 2994, lat: 29.3040, lng: -98.3932 },
+  { name: "Buffalo NY IC", code: "BNY-IC", count: 2931, lat: 42.9997, lng: -78.5295 },
+  { name: "AD Atlanta IC", code: "ATG-IC", count: 2625, lat: 33.5420, lng: -84.5502 },
+  { name: "AD Dallas RC", code: "DAL-IC", count: 2621, lat: 32.6231, lng: -96.7386 },
+  { name: "Bessemer IC", code: "BES-IC", count: 2369, lat: 33.3662, lng: -86.9360 },
+  { name: "Kansas City IC", code: "KCM-IC", count: 2274, lat: 38.8397, lng: -94.5401 },
+  { name: "AD Chandler RC", code: "CAZ-IC", count: 2014, lat: 33.3108, lng: -111.9559 },
+  { name: "AD Houston RC", code: "HST-IC", count: 2006, lat: 29.9406, lng: -95.4911 },
+  { name: "West Memphis IC", code: "WME-IC", count: 1909, lat: 35.1801, lng: -90.2053 },
+  { name: "Riverside CA IC", code: "LCA-IC", count: 1818, lat: 34.0160, lng: -117.3814 },
+  { name: "Tooele IC", code: "TOO-IC", count: 1689, lat: 40.5355, lng: -112.3454 },
+  { name: "AD Tracy RC", code: "TCA-IC", count: 1653, lat: 37.7344, lng: -121.5422 },
+  { name: "AD Indianapolis IC", code: "AIN-IC", count: 1351, lat: 39.7265, lng: -86.3496 }
+];
+
+const SOURCES = [
+  { name: "Rover", count: 278469 },
+  { name: "CarFID Gate", count: 24957 },
+  { name: "CarReceive", count: 20747 },
+  { name: "CarScan", count: 20345 },
+  { name: "Motive Truck", count: 16861 },
+  { name: "MarketOps", count: 11820 },
+  { name: "CarPark", count: 8417 },
+  { name: "ADESA Location", count: 8082 },
+  { name: "VehicleTracking", count: 7594 },
+  { name: "CarStage", count: 6393 }
+];
+
+const RECENT_MOVES = [
+  { vin: "WA1BAAFY9M2055852", from: "In Transit", to: "WVO-HB (Dulles)", time: "1:11 PM", source: "MarketOps", stock: 2004802449 },
+  { vin: "1GKS2HKJ3HR299647", from: "WND-IC Yard", to: "WND-IC C1 WIP", time: "1:11 PM", source: "CarScan", stock: 2004784049 },
+  { vin: "1J4FA39S94P761937", from: "Offsite", to: "WVO-HB (Dulles)", time: "1:11 PM", source: "RFID Gate", stock: 2004744822 },
+  { vin: "1FTER4FH6MLD94060", from: "In Transit", to: "TRE-IC Inbound", time: "1:11 PM", source: "CarReceive", stock: 2004775828 },
+  { vin: "1N4BL4DV4SN351230", from: "In Transit", to: "PHX-IC Stock-In", time: "1:11 PM", source: "CarReceive", stock: 2004807057 },
+  { vin: "KL47LAEP3SB222213", from: "Offsite", to: "WVO-HB (Dulles)", time: "1:11 PM", source: "MarketOps", stock: 2004552241 },
+  { vin: "5YJSA1DP5CFS00803", from: "ELY-IC Build", to: "ELY-IC INOP", time: "1:11 PM", source: "Rover", stock: 2004561508 },
+  { vin: "5FNYF6H17HB079214", from: "ELY-IC Lot", to: "ELY-IC INOP", time: "1:11 PM", source: "Rover", stock: 2004491925 },
+  { vin: "19XFA1F39AE020688", from: "ELY-IC Build", to: "ELY-IC INOP", time: "1:11 PM", source: "Rover", stock: 2004457956 },
+  { vin: "1C6HJTAG1NL130315", from: "WND-IC Lot", to: "WND-IC Photo", time: "1:11 PM", source: "PhotoBooth", stock: 2004733536 },
+  { vin: "5XYP3DGC5RG483490", from: "KCM-IC Yard", to: "KCM-IC C300", time: "1:11 PM", source: "CarPark", stock: 2004791314 },
+  { vin: "1C4PJXDN8SW501101", from: "POS-IC Yard", to: "POS-IC B1100", time: "1:11 PM", source: "CarPark", stock: 2004237422 }
+];
+
+const map = L.map('map', { zoomControl: true }).setView([38.5, -96], 4);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO',
+  maxZoom: 19
+}).addTo(map);
+
+function getMarkerColor(count) {
+  if (count >= 5000) return '#ff4081';
+  if (count >= 3000) return '#ff9100';
+  if (count >= 2000) return '#00d4ff';
+  return '#7b61ff';
+}
+
+function getMarkerRadius(count) {
+  return Math.max(6, Math.min(20, Math.sqrt(count) * 0.25));
+}
+
+const markers = [];
+LOCATIONS.forEach(loc => {
+  const color = getMarkerColor(loc.count);
+  const radius = getMarkerRadius(loc.count);
+  const marker = L.circleMarker([loc.lat, loc.lng], {
+    radius: radius,
+    fillColor: color,
+    color: color,
+    weight: 2,
+    opacity: 0.9,
+    fillOpacity: 0.5
+  }).addTo(map);
+
+  marker.bindPopup(`
+    <div style="font-family:system-ui;min-width:180px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:4px">${loc.name}</div>
+      <div style="color:#666;font-size:12px;margin-bottom:8px">${loc.code}</div>
+      <div style="display:flex;justify-content:space-between;font-size:13px">
+        <span>Vehicles:</span>
+        <span style="font-weight:700;color:#0099cc">${loc.count.toLocaleString()}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:2px">
+        <span>Lat/Lng:</span>
+        <span style="font-size:11px;color:#888">${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}</span>
+      </div>
+    </div>
+  `);
+  marker.locationData = loc;
+  markers.push(marker);
+});
+
+function renderLocations(filter = 'all', search = '') {
+  const list = document.getElementById('locationList');
+  const filtered = LOCATIONS.filter(loc => {
+    const matchFilter = filter === 'all' || loc.code.includes('-' + filter) || loc.code.includes(filter + '-') || loc.code === filter;
+    const matchSearch = !search || loc.name.toLowerCase().includes(search) || loc.code.toLowerCase().includes(search);
+    return matchFilter && matchSearch;
+  });
+
+  list.innerHTML = filtered.map(loc => `
+    <div class="loc-item" data-code="${loc.code}" onclick="flyTo(${loc.lat}, ${loc.lng}, '${loc.code}')">
+      <div>
+        <div class="loc-name">${loc.name}</div>
+        <div class="loc-code">${loc.code}</div>
+      </div>
+      <div class="loc-count">${loc.count.toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+function renderSources() {
+  const grid = document.getElementById('sourceGrid');
+  grid.innerHTML = SOURCES.map(s => `
+    <div class="source-item">
+      <span class="source-name">${s.name}</span>
+      <span class="source-val">${(s.count / 1000).toFixed(1)}K</span>
+    </div>
+  `).join('');
+}
+
+function renderMovements(search = '') {
+  const list = document.getElementById('movementList');
+  const filtered = RECENT_MOVES.filter(m => {
+    if (!search) return true;
+    return m.vin.toLowerCase().includes(search) ||
+           m.from.toLowerCase().includes(search) ||
+           m.to.toLowerCase().includes(search) ||
+           String(m.stock).includes(search);
+  });
+
+  list.innerHTML = filtered.map(m => `
+    <div class="move-item">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="move-vin">${m.vin}</span>
+        <span class="move-detail">${m.time}</span>
+      </div>
+      <div class="move-location">
+        ${m.from} <span class="move-arrow">&rarr;</span> ${m.to}
+      </div>
+      <div class="move-detail">Stock #${m.stock} &middot; ${m.source}</div>
+    </div>
+  `).join('');
+}
+
+function flyTo(lat, lng, code) {
+  map.flyTo([lat, lng], 12, { duration: 1.2 });
+  markers.forEach(m => {
+    if (m.locationData.code === code) m.openPopup();
+  });
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+let activeFilter = 'all';
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    renderLocations(activeFilter, document.getElementById('locationSearch').value.toLowerCase());
+  });
+});
+
+document.getElementById('locationSearch').addEventListener('input', e => {
+  renderLocations(activeFilter, e.target.value.toLowerCase());
+});
+
+document.getElementById('moveSearch').addEventListener('input', e => {
+  renderMovements(e.target.value.toLowerCase());
+});
+
+const now = new Date();
+document.getElementById('lastUpdate').textContent =
+  'Last updated: ' + now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+renderLocations();
+renderSources();
+renderMovements();
+
+setTimeout(() => map.invalidateSize(), 100);
+</script>
+</body>
+</html>
