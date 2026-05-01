@@ -423,6 +423,28 @@
             border-radius: 2px;
             min-width: 4px;
         }
+        .search-item {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            border-bottom: 1px solid #0f172a;
+            display: flex;
+            justify-content: space-between;
+        }
+        .search-item:hover { background: #253040; }
+        .search-item .s-name { color: #e2e8f0; }
+        .search-item .s-code { color: #64748b; font-size: 0.7rem; }
+        .detail-metric-card {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            border: 1px solid #334155;
+        }
+        .detail-metric-card .dm-label { font-size: 0.65rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .detail-metric-card .dm-value { font-size: 1.35rem; font-weight: 700; color: #00d4ff; margin-top: 0.25rem; }
+        .detail-metric-card .dm-rank { font-size: 0.75rem; color: #ffd700; margin-top: 0.2rem; }
+        .detail-metric-card .dm-change { font-size: 0.7rem; margin-top: 0.15rem; }
+
         .loc-sub-header {
             padding: 0.35rem 1.5rem 0.35rem 2.5rem;
             font-size: 0.65rem;
@@ -503,6 +525,33 @@
                 <option value="">All Vehicles</option>
             </select>
         </div>
+    </div>
+
+    <!-- Location Search Bar -->
+    <div style="background:#111827;padding:0.75rem 2rem;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:1rem">
+        <div style="position:relative;flex:1;max-width:500px">
+            <input type="text" id="loc-search" placeholder="Search location by name or code (e.g. Delanco, PHX-IC, Louisville VM)..."
+                style="width:100%;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:0.6rem 1rem 0.6rem 2.5rem;color:#e2e8f0;font-size:0.85rem;font-family:inherit;outline:none"
+                onfocus="this.style.borderColor='#00d4ff'" onblur="this.style.borderColor='#334155'" autocomplete="off" />
+            <span style="position:absolute;left:0.8rem;top:50%;transform:translateY(-50%);color:#475569;font-size:1rem">&#128269;</span>
+            <div id="search-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1e293b;border:1px solid #334155;border-top:none;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:100"></div>
+        </div>
+        <span style="font-size:0.75rem;color:#475569">Search to see all metrics for a specific location</span>
+    </div>
+
+    <!-- Location Detail Card -->
+    <div id="loc-detail" style="display:none;background:linear-gradient(135deg,#111827,#0f172a);padding:1rem 2rem;border-bottom:1px solid #1e293b">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+            <div style="display:flex;align-items:center;gap:0.75rem">
+                <span style="font-size:1.25rem">&#128205;</span>
+                <div>
+                    <div id="detail-name" style="font-size:1.1rem;font-weight:700;color:#00d4ff"></div>
+                    <div id="detail-code" style="font-size:0.75rem;color:#64748b"></div>
+                </div>
+            </div>
+            <button onclick="closeDetail()" style="background:none;border:1px solid #334155;border-radius:6px;padding:0.3rem 0.75rem;color:#64748b;cursor:pointer;font-family:inherit;font-size:0.75rem">Close</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem" id="detail-cards"></div>
     </div>
 
     <div id="vehicle-spotlight" style="display:none;background:#111827;padding:0.75rem 2rem;border-bottom:1px solid #1e293b;display:none">
@@ -899,6 +948,84 @@ function renderVehicleRanking(){
   document.getElementById('vehicle-ranking-rows').innerHTML=html;
 }
 function toggleVeh(v){expandedVeh=expandedVeh===v?null:v;renderVehicleRanking()}
+
+function getAllLocations(){
+  const locs={};
+  [MOVES_DATA,RECON_DATA,SALES_DATA].forEach(ds=>ds.forEach(r=>{
+    if(!locs[r.code])locs[r.code]={code:r.code,name:r.name};
+  }));
+  return Object.values(locs).sort((a,b)=>a.name.localeCompare(b.name));
+}
+const ALL_LOCS=getAllLocations();
+const searchInput=document.getElementById('loc-search');
+const searchResults=document.getElementById('search-results');
+searchInput.addEventListener('input',()=>{
+  const q=searchInput.value.toLowerCase().trim();
+  if(!q){searchResults.style.display='none';return}
+  const matches=ALL_LOCS.filter(l=>l.name.toLowerCase().includes(q)||l.code.toLowerCase().includes(q)).slice(0,10);
+  if(!matches.length){searchResults.style.display='none';return}
+  searchResults.style.display='block';
+  searchResults.innerHTML=matches.map(l=>`<div class="search-item" onclick="selectLocation('${l.code}','${l.name.replace(/'/g,"\\'")}')"><span class="s-name">${l.name}</span><span class="s-code">${l.code}</span></div>`).join('');
+});
+searchInput.addEventListener('keydown',e=>{if(e.key==='Escape'){searchResults.style.display='none';searchInput.blur()}});
+document.addEventListener('click',e=>{if(!e.target.closest('#loc-search')&&!e.target.closest('#search-results'))searchResults.style.display='none'});
+
+function selectLocation(code,name){
+  searchResults.style.display='none';
+  searchInput.value=name+' ('+code+')';
+  const week=document.getElementById('week-select').value;
+  const panel=document.getElementById('loc-detail');
+  panel.style.display='block';
+  document.getElementById('detail-name').textContent=name;
+  document.getElementById('detail-code').textContent=code;
+  const metrics=[
+    {key:'moved',label:'Units Moved',ds:MOVES_DATA},
+    {key:'reconditioned',label:'Units Reconditioned',ds:RECON_DATA},
+    {key:'sold',label:'Units Sold (Delivered)',ds:SALES_DATA}
+  ];
+  let html='';
+  metrics.forEach(m=>{
+    const cur=m.ds.filter(r=>r.week===week&&r.code===code);
+    const val=cur.length?cur[0].value:0;
+    const allWeek=getWeekData(m.key,week);
+    const rank=allWeek.findIndex(r=>r.code===code)+1;
+    const prevW=getPrevWeek(week);
+    let changeHtml='';
+    if(prevW){
+      const prev=m.ds.filter(r=>r.week===prevW&&r.code===code);
+      const pval=prev.length?prev[0].value:0;
+      if(pval>0){
+        const pct=((val-pval)/pval*100).toFixed(1);
+        const cls=pct>=0?'positive':'negative';
+        changeHtml=`<div class="dm-change ${cls}">${pct>=0?'+':''}${pct}% vs prev week</div>`;
+      }
+    }
+    const sparkData=getSparkline(m.key,code);
+    html+=`<div class="detail-metric-card">
+      <div class="dm-label">${m.label}</div>
+      <div class="dm-value">${val>0?fmt(val):'—'}</div>
+      ${rank>0?`<div class="dm-rank">Rank #${rank} of ${allWeek.length}</div>`:'<div class="dm-rank" style="color:#64748b">Not ranked this week</div>'}
+      ${changeHtml}
+      <canvas width="120" height="28" style="margin-top:4px" id="spark-${m.key}"></canvas>
+    </div>`;
+  });
+  // Top vehicles sold at this location
+  const wd=VEH_LOC_DATA.find(x=>x.w===week);
+  let topVehs=[];
+  if(wd){wd.d.forEach(v=>{v.l.forEach(l=>{if(l[0]===code)topVehs.push({name:v.v,units:l[2]})})});topVehs.sort((a,b)=>b.units-a.units)}
+  if(topVehs.length){
+    html+=`<div class="detail-metric-card" style="grid-column:span 2">
+      <div class="dm-label">Top Vehicles Sold Here</div>
+      <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.4rem">
+        ${topVehs.slice(0,8).map(v=>`<span style="background:#0a0e1a;padding:0.25rem 0.6rem;border-radius:4px;font-size:0.75rem"><span style="color:#e2e8f0">${v.name}</span> <span style="color:#00d4ff;font-weight:700">${v.units}</span></span>`).join('')}
+      </div>
+    </div>`;
+  }
+  document.getElementById('detail-cards').innerHTML=html;
+  metrics.forEach(m=>{const c=document.getElementById('spark-'+m.key);if(c)drawSparkline(c,getSparkline(m.key,code))});
+  if(GPS[code])flyTo(code);
+}
+function closeDetail(){document.getElementById('loc-detail').style.display='none';searchInput.value=''}
 
 updateVehicleDropdown();applyFilters();setTimeout(()=>map.invalidateSize(),100);
 </script>
