@@ -73,14 +73,14 @@ def query_recon(cur, start_date):
 def query_sales(cur, start_date):
     cur.execute(f"""
         SELECT DATE_TRUNC('WEEK', fs.SALE_EFFECTIVE_DATE)::DATE AS week_start,
-               dv.PRODUCTION_LOCATION AS location_code,
-               dv.PRODUCTION_LOCATION_CITY_STATE AS location_name,
+               dv.VEHICLE_LOCATION_LOCATION_CODE AS location_code,
+               dv.VEHICLE_LOCATION_LOCATION_NAME AS location_name,
                COUNT(DISTINCT dv.STOCK_NUMBER) AS units_sold
         FROM SHARED.DW.FACT_SALE fs
         JOIN SHARED.DW.DIM_VEHICLE dv ON fs.VEHICLE_SK = dv.VEHICLE_SK
         WHERE fs.SALE_EFFECTIVE_DATE >= '{start_date}'
           AND fs.IS_PURCHASE_COMPLETED = TRUE
-          AND dv.PRODUCTION_LOCATION IS NOT NULL
+          AND dv.VEHICLE_LOCATION_LOCATION_CODE IS NOT NULL
         GROUP BY 1, 2, 3
         QUALIFY ROW_NUMBER() OVER (PARTITION BY week_start ORDER BY units_sold DESC) <= 30
         ORDER BY week_start, units_sold DESC
